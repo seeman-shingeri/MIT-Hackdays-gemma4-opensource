@@ -169,3 +169,115 @@ export function validateVerificationResponse(
 
   return { success: true, data: validated };
 }
+
+export interface AutomaticFaultRecognitionResult {
+  detectedIssue: string;
+  category: string;
+  severity: Severity;
+  plainLanguageDescription: string;
+  visibleEvidence: string[];
+  confidenceRating: 'High' | 'Medium' | 'Low' | 'Inconclusive';
+  confidenceNote: string;
+  uncertainties: string[];
+  suggestedNextStep: string;
+  requiresHumanOnsiteInspection: boolean;
+  analyzedAt: string;
+  modelUsed: string;
+  isSimulated: boolean;
+}
+
+export const PRACTICAL_FAULT_CATEGORIES = [
+  'Road & Pavement Damage',
+  'Cracks & Concrete Damage',
+  'Accessibility Obstacles',
+  'Exposed Electrical Wiring',
+  'Water Leakage & Plumbing',
+  'Damaged Public Infrastructure',
+  'No Clear Fault Detected',
+  'Other Visible Defects',
+] as const;
+
+export function validateFaultRecognition(
+  raw: unknown,
+  modelName: string,
+  isSimulated = false
+): { success: true; data: AutomaticFaultRecognitionResult } | { success: false; error: string } {
+  if (!raw || typeof raw !== 'object') {
+    return { success: false, error: 'Expected JSON object in fault recognition output' };
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  const detectedIssue = typeof obj.detectedIssue === 'string' && obj.detectedIssue.trim()
+    ? obj.detectedIssue.trim()
+    : 'Identified Infrastructure Condition';
+
+  let category = 'Other Visible Defects';
+  if (typeof obj.category === 'string') {
+    const trimmed = obj.category.trim();
+    const matched = PRACTICAL_FAULT_CATEGORIES.find(c => c.toLowerCase() === trimmed.toLowerCase());
+    if (matched) {
+      category = matched;
+    } else {
+      category = trimmed;
+    }
+  }
+
+  let severity: Severity = 'Medium';
+  if (typeof obj.severity === 'string') {
+    const matched = VALID_SEVERITIES.find(s => s.toLowerCase() === (obj.severity as string).toLowerCase().trim());
+    if (matched) severity = matched;
+  }
+
+  const plainLanguageDescription = typeof obj.plainLanguageDescription === 'string' && obj.plainLanguageDescription.trim()
+    ? obj.plainLanguageDescription.trim()
+    : 'Visual evaluation of infrastructure photograph.';
+
+  const visibleEvidence: string[] = Array.isArray(obj.visibleEvidence)
+    ? obj.visibleEvidence.filter(e => typeof e === 'string' && e.trim().length > 0).map(e => String(e).trim())
+    : ['Visual features observed in photographic evidence'];
+
+  let confidenceRating: 'High' | 'Medium' | 'Low' | 'Inconclusive' = 'Medium';
+  if (typeof obj.confidenceRating === 'string') {
+    const val = obj.confidenceRating.trim();
+    if (['High', 'Medium', 'Low', 'Inconclusive'].includes(val)) {
+      confidenceRating = val as 'High' | 'Medium' | 'Low' | 'Inconclusive';
+    }
+  }
+
+  const confidenceNote = typeof obj.confidenceNote === 'string' && obj.confidenceNote.trim()
+    ? obj.confidenceNote.trim()
+    : 'AI-generated assessment. Self-reported confidence represents visual clarity only and is not a calibrated structural probability.';
+
+  const uncertainties: string[] = Array.isArray(obj.uncertainties)
+    ? obj.uncertainties.filter(u => typeof u === 'string' && u.trim().length > 0).map(u => String(u).trim())
+    : ['Internal material integrity cannot be verified from surface photography alone'];
+
+  const suggestedNextStep = typeof obj.suggestedNextStep === 'string' && obj.suggestedNextStep.trim()
+    ? obj.suggestedNextStep.trim()
+    : 'Schedule certified on-site maintenance dispatch for physical verification.';
+
+  const requiresHumanOnsiteInspection = typeof obj.requiresHumanOnsiteInspection === 'boolean'
+    ? obj.requiresHumanOnsiteInspection
+    : true;
+
+  const validated: AutomaticFaultRecognitionResult = {
+    detectedIssue,
+    category,
+    severity,
+    plainLanguageDescription,
+    visibleEvidence,
+    confidenceRating,
+    confidenceNote,
+    uncertainties,
+    suggestedNextStep,
+    requiresHumanOnsiteInspection,
+    analyzedAt: new Date().toISOString(),
+    modelUsed: modelName,
+    isSimulated,
+  };
+
+  return { success: true, data: validated };
+}
+
+

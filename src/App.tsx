@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import { CommandBar } from './components/CommandBar';
-import { ModelConfigModal } from './components/ModelConfigModal';
-import { JudgeRubricModal } from './components/JudgeRubricModal';
-import { IncidentReportModal } from './features/cases/IncidentReportModal';
+import { CommandBar, type AppTab } from './components/CommandBar';
 import { CaseFeed } from './features/cases/CaseFeed';
 import { CaseDetailWorkflow } from './features/cases/CaseDetailWorkflow';
+import { InspectWorkflow } from './features/inspect/InspectWorkflow';
+import { AboutView } from './components/AboutView';
+import { ModelConfigModal } from './components/ModelConfigModal';
 import { ReplayDirector } from './features/replay/ReplayDirector';
 
 import { 
   ClipboardList, 
-  Plus, 
-  Play, 
-  HelpCircle,
+  Camera, 
+  Info,
   ShieldCheck,
   WifiOff,
   Download 
@@ -22,7 +21,7 @@ import {
   loadCases, 
   saveCases, 
   saveOrUpdateCase, 
-  mergeEvidenceIntoCase, 
+  clearUserCases,
   getSessionApiKey, 
   setSessionApiKey, 
   getSelectedModel, 
@@ -39,39 +38,36 @@ import {
 } from './data/presetAssets';
 
 import type { CivicCase, EvidenceItem, MergeLog } from './types/case';
-import type { ApiConfig, DuplicateMatchResult } from './types/ai';
+import type { ApiConfig } from './types/ai';
 
 export function App() {
-  const [cases, setCases] = useState<CivicCase[]>(() => loadCases());
+  const [activeTab, setActiveTab] = useState<AppTab>('reports');
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => getDemoMode());
+  const [cases, setCases] = useState<CivicCase[]>(() => loadCases(getDemoMode()));
+  
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(() => {
-    const loaded = loadCases();
+    const loaded = loadCases(getDemoMode());
     return loaded.length > 0 ? loaded[0].id : null;
   });
 
-  // Mobile view state: 'list' | 'detail'
-  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
+  // Mobile reports view: 'list' | 'detail'
+  const [mobileReportsView, setMobileReportsView] = useState<'list' | 'detail'>('list');
 
-  // Modals state
-  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
-  const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
-  const [isRubricModalOpen, setIsRubricModalOpen] = useState<boolean>(false);
-
-  // Replay state
+  // Modals & Replay
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isReplayActive, setIsReplayActive] = useState<boolean>(false);
   const [replayStep, setReplayStep] = useState<number>(1);
 
   // AI & telemetry config
   const [apiKey, setApiKey] = useState<string>(() => getSessionApiKey());
   const [selectedModelName, setSelectedModelName] = useState<string>(() => getSelectedModel());
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => getDemoMode());
-  const [aiCallsCount, setAiCallsCount] = useState<number>(3); // Initial seeded count
 
   // PWA and Network state
   const isOnline = useOnlineStatus();
   const { installPrompt, triggerInstall } = usePwaInstallPrompt();
 
-  // Active case
-  const activeCase = cases.find(c => c.id === selectedCaseId) || cases[0];
+  // Active case in view
+  const activeCase = cases.find(c => c.id === selectedCaseId) || (cases.length > 0 ? cases[0] : null);
 
   // Save API key
   const handleSaveApiKey = (key: string) => {
@@ -85,42 +81,40 @@ export function App() {
     setSelectedModel(model);
   };
 
-  // Toggle Demo Mode
-  const handleToggleDemoMode = (demo: boolean) => {
-    setIsDemoMode(demo);
-    setDemoMode(demo);
+  // Toggle Demo Mode (Strict isolation between real user data and demonstration dataset)
+  const handleToggleDemoMode = () => {
+    const nextMode = !isDemoMode;
+    setIsDemoMode(nextMode);
+    setDemoMode(nextMode);
+    const reloaded = loadCases(nextMode);
+    setCases(reloaded);
+    setSelectedCaseId(reloaded.length > 0 ? reloaded[0].id : null);
+    setMobileReportsView('list');
   };
 
-  // Handle new case created
+  // Handle new case created from InspectWorkflow
   const handleCaseCreated = (newCase: CivicCase) => {
-    const updated = saveOrUpdateCase(newCase);
+    const updated = saveOrUpdateCase(newCase, isDemoMode);
     setCases(updated);
     setSelectedCaseId(newCase.id);
-    setMobileView('detail');
-    setAiCallsCount(prev => prev + 1);
-  };
-
-  // Handle evidence merged
-  const handleEvidenceMerged = (
-    targetCaseId: string,
-    evidence: EvidenceItem,
-    match: DuplicateMatchResult
-  ) => {
-    const merged = mergeEvidenceIntoCase(targetCaseId, evidence, match);
-    if (merged) {
-      const updatedList = loadCases();
-      setCases(updatedList);
-      setSelectedCaseId(targetCaseId);
-      setMobileView('detail');
-    }
+    setActiveTab('reports');
+    setMobileReportsView('detail');
   };
 
   // Handle case updated
   const handleUpdateCase = (updatedCase: CivicCase) => {
-    const updated = saveOrUpdateCase(updatedCase);
+    const updated = saveOrUpdateCase(updatedCase, isDemoMode);
     setCases(updated);
-    if (updatedCase.verification) {
-      setAiCallsCount(prev => prev + 1);
+  };
+
+  // Clear local data
+  const handleClearData = () => {
+    if (window.confirm('Reset all local incident records? This will clear locally recorded cases.')) {
+      clearUserCases();
+      const reloaded = loadCases(isDemoMode);
+      setCases(reloaded);
+      setSelectedCaseId(null);
+      setMobileReportsView('list');
     }
   };
 
@@ -284,12 +278,16 @@ export function App() {
 
     const updatedList = cases.map(c => (c.id === modifiedCase.id ? modifiedCase : c));
     setCases(updatedList);
-    saveCases(updatedList);
+    saveCases(updatedList, isDemoMode);
     setSelectedCaseId(modifiedCase.id);
-    setMobileView('detail');
+    setActiveTab('reports');
+    setMobileReportsView('detail');
   };
 
   const startReplay = () => {
+    if (!isDemoMode) {
+      handleToggleDemoMode();
+    }
     setIsReplayActive(true);
     handleReplayStepChange(1);
   };
@@ -301,172 +299,183 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans antialiased">
       {/* Offline Status Warning Banner */}
       {!isOnline && (
-        <div className="bg-amber-500 text-amber-950 px-4 py-2 text-xs font-semibold flex items-center justify-between gap-2 shadow-sm animate-in fade-in duration-200">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs font-semibold flex items-center justify-between gap-2 shadow-sm animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
             <WifiOff className="w-4 h-4 text-amber-950 shrink-0" />
             <span>
-              <strong>Offline Mode Active:</strong> Field records and Community Problem Replay remain fully operational. Live Gemma API analysis requires internet connectivity.
+              <strong>Offline Mode Active:</strong> Incident records and offline tools remain operational. Live AI analysis requires internet connectivity.
             </span>
           </div>
-          <span className="hidden sm:inline-block text-[11px] bg-amber-600/30 px-2 py-0.5 rounded text-amber-950">
-            Local Persistence Ready
-          </span>
         </div>
       )}
 
-      {/* PWA Install Promotion Banner (when browser prompt is available) */}
+      {/* PWA Install Promotion Banner */}
       {installPrompt && (
-        <div className="bg-blue-600 text-white px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 shadow-sm">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 shadow-sm">
           <div className="flex items-center gap-2">
             <Download className="w-4 h-4 text-white shrink-0" />
-            <span>Install REPAIR.AI on your device for one-tap field access &amp; offline reliability.</span>
+            <span>Install REPAIR.AI on your home screen for rapid field inspection.</span>
           </div>
           <button
             type="button"
             onClick={triggerInstall}
-            className="min-h-[32px] px-3 py-1 rounded-md bg-white text-blue-700 font-bold hover:bg-blue-50 active:scale-95 transition-all"
+            className="min-h-[30px] px-3 py-1 rounded-lg bg-white text-blue-700 font-bold hover:bg-blue-50 active:scale-95 transition-all"
           >
-            Install App
+            Install
           </button>
         </div>
       )}
 
-      {/* 1. Simplified Main Navigation */}
+      {/* 1. Fixed Top CommandBar (Apple Glass, Stays Fixed) */}
       <CommandBar
-        onOpenReportModal={() => setIsReportModalOpen(true)}
-        onOpenModelModal={() => setIsModelModalOpen(true)}
-        onOpenRubricModal={() => setIsRubricModalOpen(true)}
-        onStartReplay={startReplay}
-        isReplayActive={isReplayActive}
-        totalReportsCount={cases.length}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
+        isDemoMode={isDemoMode}
+        onToggleDemoMode={handleToggleDemoMode}
+        reportsCount={cases.length}
       />
 
-      {/* 2. Guided Community Problem Replay (when active) */}
-      {isReplayActive && (
-        <ReplayDirector
-          currentStep={replayStep}
-          onStepChange={handleReplayStepChange}
-          onClose={() => setIsReplayActive(false)}
-        />
-      )}
-
-      {/* 3. Main Workspace: Clean 2-Column Layout on Desktop, Fluid on Mobile */}
-      <div className="flex-1 flex overflow-hidden max-w-7xl mx-auto w-full">
-        {/* Left Column: Reports List */}
-        <div
-          className={`w-full lg:w-[380px] xl:w-[420px] shrink-0 h-full border-r border-slate-200 ${
-            mobileView === 'list' ? 'flex' : 'hidden lg:flex'
-          }`}
-        >
-          <CaseFeed
-            cases={cases}
-            selectedCaseId={selectedCaseId}
-            onSelectCase={id => {
-              setSelectedCaseId(id);
-              setMobileView('detail');
-            }}
-            onOpenReportModal={() => setIsReportModalOpen(true)}
-          />
-        </div>
-
-        {/* Right Column: Selected Report Detail */}
-        <div
-          className={`flex-1 h-full overflow-hidden ${
-            mobileView === 'detail' ? 'flex' : 'hidden lg:flex'
-          }`}
-        >
-          {activeCase ? (
-            <CaseDetailWorkflow
-              civicCase={activeCase}
-              onUpdateCase={handleUpdateCase}
-              apiConfig={apiConfig}
-              onBackToList={() => setMobileView('list')}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center p-8 text-center text-slate-500">
-              <p className="text-sm font-medium">Select a report from the list to view details</p>
+      {/* 2. Main Content View Area (Scrolls independently; Never covered by navigation) */}
+      <main className="flex-1 overflow-hidden pt-16 pb-16 lg:pb-0 flex flex-col">
+        {activeTab === 'reports' && (
+          <div className="flex-1 flex overflow-hidden max-w-7xl mx-auto w-full">
+            {/* Left Column: Reports List */}
+            <div
+              className={`w-full lg:w-[380px] xl:w-[420px] shrink-0 h-full border-r border-slate-200/80 ${
+                mobileReportsView === 'list' ? 'flex' : 'hidden lg:flex'
+              }`}
+            >
+              <CaseFeed
+                cases={cases}
+                selectedCaseId={selectedCaseId}
+                onSelectCase={id => {
+                  setSelectedCaseId(id);
+                  setMobileReportsView('detail');
+                }}
+                onStartInspection={() => setActiveTab('inspect')}
+                isDemoMode={isDemoMode}
+                onToggleDemoMode={handleToggleDemoMode}
+              />
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* 4. Mobile Bottom Navigation Bar with Safe Area support */}
-      <nav className="lg:hidden sticky bottom-0 z-30 w-full bg-white border-t border-slate-200 py-1 px-3 pb-safe flex items-center justify-around shadow-md">
-        <button
-          type="button"
-          onClick={() => setMobileView('list')}
-          className={`min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-            mobileView === 'list' ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'
-          }`}
-          aria-label="View all incident cases"
-        >
-          <ClipboardList className="w-5 h-5" />
-          <span>Cases</span>
-        </button>
-
-        {activeCase && (
-          <button
-            type="button"
-            onClick={() => setMobileView('detail')}
-            className={`min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-              mobileView === 'detail' ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'
-            }`}
-            aria-label="View active case workflow"
-          >
-            <ShieldCheck className="w-5 h-5" />
-            <span className="truncate max-w-[64px]">Workflow</span>
-          </button>
+            {/* Right Column: Active Case Workflow */}
+            <div
+              className={`flex-1 h-full overflow-hidden ${
+                mobileReportsView === 'detail' ? 'flex' : 'hidden lg:flex'
+              }`}
+            >
+              {activeCase ? (
+                <CaseDetailWorkflow
+                  civicCase={activeCase}
+                  onUpdateCase={handleUpdateCase}
+                  apiConfig={apiConfig}
+                  onBackToList={() => setMobileReportsView('list')}
+                />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                  <ShieldCheck className="w-12 h-12 stroke-[1.5] text-slate-300 mb-3" />
+                  <p className="text-sm font-semibold text-slate-700">No Report Selected</p>
+                  <p className="text-xs text-slate-400 max-w-xs mt-1">
+                    Select a report from the list on the left, or launch an inspection to document an incident.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setIsReportModalOpen(true)}
-          className="min-h-[48px] min-w-[48px] flex items-center justify-center -mt-4 w-12 h-12 rounded-full bg-blue-600 text-white shadow-md active:scale-95 transition-transform focus:ring-2 focus:ring-blue-500"
-          title="Report New Incident"
-          aria-label="Report New Incident"
-        >
-          <Plus className="w-6 h-6 stroke-[2.5]" />
-        </button>
+        {activeTab === 'inspect' && (
+          <InspectWorkflow
+            onReportSubmitted={handleCaseCreated}
+            onCancel={() => setActiveTab('reports')}
+            apiConfig={apiConfig}
+            isDemoMode={isDemoMode}
+          />
+        )}
 
+        {activeTab === 'about' && (
+          <AboutView
+            apiKey={apiKey}
+            onSaveApiKey={handleSaveApiKey}
+            selectedModel={selectedModelName}
+            onSelectModel={handleSelectModel}
+            isDemoMode={isDemoMode}
+            onToggleDemoMode={handleToggleDemoMode}
+            onStartReplay={startReplay}
+            cases={cases}
+            onClearData={handleClearData}
+          />
+        )}
+      </main>
+
+      {/* 3. Fixed Mobile Bottom Tab Bar (Strictly 3 Destinations, Stays Fixed) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/85 border-t border-slate-200/70 px-4 py-1 pb-safe flex items-center justify-around shadow-lg">
+        {/* Destination 1: Reports */}
         <button
           type="button"
-          onClick={startReplay}
-          className={`min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-            isReplayActive ? 'text-amber-600 font-semibold' : 'text-slate-500 hover:text-slate-700'
+          onClick={() => {
+            setActiveTab('reports');
+            if (cases.length === 0) setMobileReportsView('list');
+          }}
+          className={`min-h-[48px] min-w-[64px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
+            activeTab === 'reports' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
           }`}
-          aria-label="Community Problem Replay"
+          aria-label="View Reports"
         >
-          <Play className="w-5 h-5" />
-          <span>Replay</span>
+          <div className="relative">
+            <ClipboardList className="w-5 h-5" />
+            {cases.length > 0 && (
+              <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] bg-slate-900 text-white font-bold">
+                {cases.length}
+              </span>
+            )}
+          </div>
+          <span>Reports</span>
         </button>
 
+        {/* Destination 2: Inspect (Centered iOS Action Pill) */}
         <button
           type="button"
-          onClick={() => setIsRubricModalOpen(true)}
-          className="min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
-          aria-label="Project Rubric and Architecture"
+          onClick={() => setActiveTab('inspect')}
+          className={`min-h-[48px] min-w-[76px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-all ${
+            activeTab === 'inspect'
+              ? 'text-blue-600 font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+          aria-label="Inspect Fault"
         >
-          <HelpCircle className="w-5 h-5" />
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+            activeTab === 'inspect'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-700'
+          }`}>
+            <Camera className="w-4 h-4 stroke-[2.2]" />
+          </div>
+          <span>Inspect</span>
+        </button>
+
+        {/* Destination 3: About */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('about')}
+          className={`min-h-[48px] min-w-[64px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
+            activeTab === 'about' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
+          }`}
+          aria-label="About & Settings"
+        >
+          <Info className="w-5 h-5" />
           <span>About</span>
         </button>
       </nav>
 
-      {/* Modals */}
-      <IncidentReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        existingCases={cases}
-        onCaseCreated={handleCaseCreated}
-        onEvidenceMerged={handleEvidenceMerged}
-        apiConfig={apiConfig}
-      />
-
+      {/* Settings Modal (when triggered via top header gear) */}
       <ModelConfigModal
-        isOpen={isModelModalOpen}
-        onClose={() => setIsModelModalOpen(false)}
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
         apiKey={apiKey}
         onSaveApiKey={handleSaveApiKey}
         selectedModel={selectedModelName}
@@ -475,14 +484,14 @@ export function App() {
         onToggleDemoMode={handleToggleDemoMode}
       />
 
-      <JudgeRubricModal
-        isOpen={isRubricModalOpen}
-        onClose={() => setIsRubricModalOpen(false)}
-        cases={cases}
-        selectedModel={selectedModelName}
-        isDemoMode={isDemoMode}
-        aiCallsCount={aiCallsCount}
-      />
+      {/* Guided Community Problem Replay Overlay */}
+      {isReplayActive && (
+        <ReplayDirector
+          currentStep={replayStep}
+          onStepChange={handleReplayStepChange}
+          onClose={() => setIsReplayActive(false)}
+        />
+      )}
     </div>
   );
 }

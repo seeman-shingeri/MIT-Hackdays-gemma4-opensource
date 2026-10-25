@@ -1,111 +1,131 @@
 import React from 'react';
 import { 
   ShieldCheck, 
-  Play, 
-  Plus, 
+  Camera, 
   Settings, 
-  HelpCircle, 
-  ClipboardList
+  Info, 
+  ClipboardList,
+  Sparkles
 } from 'lucide-react';
 
+export type AppTab = 'reports' | 'inspect' | 'about';
+
 interface CommandBarProps {
-  onOpenReportModal: () => void;
-  onOpenModelModal: () => void;
-  onOpenRubricModal: () => void;
-  onStartReplay: () => void;
-  isReplayActive: boolean;
-  totalReportsCount: number;
+  activeTab: AppTab;
+  onSelectTab: (tab: AppTab) => void;
+  onOpenSettings: () => void;
+  isDemoMode: boolean;
+  onToggleDemoMode: () => void;
+  reportsCount: number;
 }
 
 export const CommandBar: React.FC<CommandBarProps> = ({
-  onOpenReportModal,
-  onOpenModelModal,
-  onOpenRubricModal,
-  onStartReplay,
-  isReplayActive,
-  totalReportsCount,
+  activeTab,
+  onSelectTab,
+  onOpenSettings,
+  isDemoMode,
+  onToggleDemoMode,
+  reportsCount,
 }) => {
   return (
-    <header className="sticky top-0 z-40 w-full bg-white border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Brand & Descriptor */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
-            <ShieldCheck className="w-5 h-5 stroke-[2.2]" />
+    <header className="fixed top-0 left-0 right-0 z-40 w-full h-16 backdrop-blur-xl bg-white/80 border-b border-slate-200/70 shadow-xs">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-4">
+        {/* Brand & iOS-style Logo */}
+        <button
+          type="button"
+          onClick={() => onSelectTab('reports')}
+          className="flex items-center gap-2.5 text-left focus:outline-none group"
+        >
+          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs group-hover:bg-blue-700 transition-colors">
+            <ShieldCheck className="w-4 h-4 stroke-[2.2]" />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="font-bold text-slate-900 text-base sm:text-lg tracking-tight truncate">
-                REPAIR<span className="text-blue-600">.AI</span>
-              </span>
-              <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                Civic Field Inspector
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 hidden sm:block truncate">
-              Community Infrastructure &amp; Accessibility Resolution
-            </p>
-          </div>
-        </div>
-
-        {/* Center / Navigation Links (Desktop) */}
-        <nav className="hidden md:flex items-center gap-1 sm:gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-900 bg-slate-100 border border-slate-200"
-          >
-            <ClipboardList className="w-4 h-4 text-blue-600" />
-            <span>Reports</span>
-            <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-xs font-semibold bg-blue-600 text-white">
-              {totalReportsCount}
+          <div>
+            <span className="font-semibold text-slate-900 text-base tracking-tight block leading-none">
+              REPAIR<span className="text-blue-600">.AI</span>
             </span>
-          </button>
+            <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+              Civic Fault Recognition
+            </span>
+          </div>
+        </button>
 
+        {/* Center: Desktop Segmented Control (Apple-style 3 Destinations) */}
+        <nav className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 shadow-inner">
           <button
             type="button"
-            onClick={onStartReplay}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isReplayActive
-                ? 'bg-amber-50 text-amber-900 border border-amber-300 font-semibold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            onClick={() => onSelectTab('reports')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'reports'
+                ? 'bg-white text-slate-900 shadow-xs ring-1 ring-black/5'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            <Play className={`w-4 h-4 ${isReplayActive ? 'text-amber-600 fill-amber-600' : 'text-slate-500'}`} />
-            <span>Community Replay</span>
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Reports</span>
+            {reportsCount > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                activeTab === 'reports' ? 'bg-slate-100 text-slate-700' : 'bg-slate-200 text-slate-600'
+              }`}>
+                {reportsCount}
+              </span>
+            )}
           </button>
 
           <button
             type="button"
-            onClick={onOpenRubricModal}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            onClick={() => onSelectTab('inspect')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'inspect'
+                ? 'bg-white text-blue-600 shadow-xs ring-1 ring-black/5'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
           >
-            <HelpCircle className="w-4 h-4 text-slate-500" />
-            <span>Project Rubric</span>
+            <Camera className="w-3.5 h-3.5" />
+            <span>Inspect</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectTab('about')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'about'
+                ? 'bg-white text-slate-900 shadow-xs ring-1 ring-black/5'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>About</span>
           </button>
         </nav>
 
-        {/* Right Primary Actions */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* Settings Trigger (API Key & Engine) */}
+        {/* Right Actions: Demo Mode Toggle & Settings */}
+        <div className="flex items-center gap-2">
+          {/* Explicitly Labeled Demo Mode Toggle */}
           <button
             type="button"
-            onClick={onOpenModelModal}
-            title="Configure AI Engine & API"
-            className="w-11 h-11 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            aria-label="Settings and Engine Configuration"
+            onClick={onToggleDemoMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              isDemoMode
+                ? 'bg-amber-50 text-amber-800 border-amber-300 font-semibold shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title={isDemoMode ? 'Demo Mode Active — Click to exit' : 'Click to preview demo data'}
           >
-            <Settings className="w-4 h-4" />
+            <Sparkles className={`w-3.5 h-3.5 ${isDemoMode ? 'text-amber-600' : 'text-slate-400'}`} />
+            <span className="hidden sm:inline">
+              {isDemoMode ? 'Demo Mode' : 'Try Demo'}
+            </span>
           </button>
 
-          {/* Prominent New Report Action Button */}
+          {/* Engine Settings Sheet Trigger */}
           <button
             type="button"
-            onClick={onOpenReportModal}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            onClick={onOpenSettings}
+            title="Configure AI API Key & Engine"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors focus:ring-2 focus:ring-blue-500"
+            aria-label="Settings"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden xs:inline sm:inline">New Report</span>
-            <span className="xs:hidden sm:hidden">Report</span>
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>

@@ -46,7 +46,8 @@ describe('Mobile Workflows & Verification Suite', () => {
     setDemoMode(true);
     expect(getDemoMode()).toBe(true);
 
-    const cases = loadCases();
+    const cases = loadCases(true);
+    expect(cases.length).toBeGreaterThan(0);
     const report = {
       zone: cases[0].zone,
       category: cases[0].category,
