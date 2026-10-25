@@ -112,4 +112,17 @@ export interface CivicCase {
   assignedTeam?: string;
   estimatedResponseTarget?: string;
   priorityScore: number;
+  // Authenticated attribution and resolution details
+  createdBy?: string;
+  createdByName?: string;
+  assignedTo?: string;
+  assignedToId?: string;
+  resolvedBy?: string;
+  resolvedById?: string;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+  resolutionEvidenceUrl?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
 }

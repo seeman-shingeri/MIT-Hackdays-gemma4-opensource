@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import type { CampusZone, CivicCase, EvidenceItem, IssueCategory } from '../../types/case';
 import type { ApiConfig } from '../../types/ai';
+import type { UserAccount } from '../../types/auth';
+import { awardPoints } from '../../services/reputation';
+import { logActivity } from '../../services/activity';
 import { processAndCompressImage, validateImageFile, type ProcessedImageInfo } from '../../utils/imageUtils';
 import { recognizeFaultAutomatically, AiServiceError } from '../../services/ai';
 import type { AutomaticFaultRecognitionResult } from '../../services/aiValidation';
@@ -42,6 +45,7 @@ interface InspectWorkflowProps {
   onCancel: () => void;
   apiConfig: ApiConfig;
   isDemoMode: boolean;
+  currentUser?: UserAccount | null;
 }
 
 export const InspectWorkflow: React.FC<InspectWorkflowProps> = ({
@@ -49,6 +53,7 @@ export const InspectWorkflow: React.FC<InspectWorkflowProps> = ({
   onCancel,
   apiConfig,
   isDemoMode,
+  currentUser,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -207,6 +212,8 @@ export const InspectWorkflow: React.FC<InspectWorkflowProps> = ({
           analysisResult?.severity === 'Critical'
             ? '4 Hours (Urgent Hazard)'
             : '24 Hours (Standard Facilities Tier)',
+        createdBy: currentUser?.id,
+        createdByName: currentUser?.displayName || 'Campus Contributor',
         aiAnalysis: analysisResult ? {
           issueTitle: analysisResult.detectedIssue,
           category,
@@ -223,6 +230,23 @@ export const InspectWorkflow: React.FC<InspectWorkflowProps> = ({
           isSimulated: analysisResult.isSimulated,
         } : undefined,
       };
+
+      // Award identification points to authenticated creator
+      if (currentUser?.id) {
+        awardPoints(currentUser.id, newCase.id, 'VALID_REPORT', undefined, currentUser.id);
+        if (newCase.evidence.length > 0 && newCase.evidence[0].imageUrl) {
+          awardPoints(currentUser.id, newCase.id, 'EVIDENCE_BONUS', undefined, currentUser.id);
+        }
+      }
+
+      // Log immutable activity
+      logActivity(
+        'REPORT_CREATED',
+        newCase.id,
+        currentUser || null,
+        `Report submitted: "${newCase.title}" at ${newCase.zone} (${newCase.landmark})`,
+        { category: newCase.category, severity: newCase.severity }
+      );
 
       setIsSubmitted(true);
       setTimeout(() => {

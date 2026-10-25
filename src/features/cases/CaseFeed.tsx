@@ -16,6 +16,8 @@ interface CaseFeedProps {
   onStartInspection: () => void;
   isDemoMode: boolean;
   onToggleDemoMode: () => void;
+  currentUserId?: string;
+  initialFilter?: 'All' | 'Active' | 'Resolved' | 'My Reports';
 }
 
 export const CaseFeed: React.FC<CaseFeedProps> = ({
@@ -25,12 +27,21 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
   onStartInspection,
   isDemoMode,
   onToggleDemoMode,
+  currentUserId,
+  initialFilter = 'All',
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Resolved'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Resolved' | 'My Reports'>(initialFilter);
 
   const filteredCases = useMemo(() => {
     return cases.filter(c => {
+      // My reports filter
+      if (statusFilter === 'My Reports') {
+        if (!currentUserId || c.createdBy !== currentUserId) {
+          return false;
+        }
+      }
+
       // Status filter
       if (statusFilter === 'Active' && (c.status === 'RESOLVED' || c.status === 'CLOSED' || c.verification?.verificationStatus === 'VISUALLY_VERIFIED')) {
         return false;
@@ -47,12 +58,13 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
         const matchesZone = c.zone.toLowerCase().includes(query);
         const matchesLandmark = c.landmark.toLowerCase().includes(query);
         const matchesCategory = c.category.toLowerCase().includes(query);
-        return matchesId || matchesTitle || matchesZone || matchesLandmark || matchesCategory;
+        const matchesReporter = c.createdByName?.toLowerCase().includes(query) || false;
+        return matchesId || matchesTitle || matchesZone || matchesLandmark || matchesCategory || matchesReporter;
       }
 
       return true;
     });
-  }, [cases, statusFilter, searchTerm]);
+  }, [cases, statusFilter, searchTerm, currentUserId]);
 
   // Clean, iOS-style status badge
   const renderStatusBadge = (c: CivicCase) => {
@@ -165,13 +177,17 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
 
         {/* Compact Segmented Status Filter */}
         <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center p-0.5 bg-slate-100/90 rounded-lg border border-slate-200/70">
-            {(['All', 'Active', 'Resolved'] as const).map(s => (
+          <div className="flex items-center p-0.5 bg-slate-100/90 rounded-lg border border-slate-200/70 overflow-x-auto scrollbar-none">
+            {(
+              (currentUserId
+                ? ['All', 'Active', 'Resolved', 'My Reports']
+                : ['All', 'Active', 'Resolved']) as Array<'All' | 'Active' | 'Resolved' | 'My Reports'>
+            ).map(s => (
               <button
                 key={s}
                 type="button"
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-all ${
                   statusFilter === s
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-500 hover:text-slate-900'

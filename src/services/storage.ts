@@ -1,6 +1,10 @@
 import type { CivicCase, EvidenceItem, MergeLog } from '../types/case';
 import { INITIAL_DEMO_CASES } from '../data/demoCases';
 import type { DuplicateMatchResult } from '../types/ai';
+import type { UserAccount } from '../types/auth';
+import { canUserDeleteReport, canUserResolveReport } from './auth';
+import { logActivity } from './activity';
+import { awardPoints } from './reputation';
 
 const STORAGE_KEY_USER_CASES = 'repair_ai_user_cases_v2';
 const STORAGE_KEY_DEMO_CASES = 'repair_ai_demo_cases_v2';
@@ -78,6 +82,112 @@ export function saveOrUpdateCase(civicCase: CivicCase, isDemoMode = false): Civi
 
   saveCases(updatedCases, isDemoMode);
   return updatedCases;
+}
+
+/**
+ * Deletes a report with strict identity authorization and audit retention.
+ */
+export function deleteCase(
+  caseId: string,
+  currentUser: UserAccount | null,
+  isDemoMode = false
+): { success: boolean; error?: string } {
+  const cases = loadCases(isDemoMode);
+  const targetCase = cases.find(c => c.id === caseId);
+
+  if (!targetCase) {
+    return { success: false, error: 'Report not found in database.' };
+  }
+
+  // Authorization check
+  const perm = canUserDeleteReport(currentUser, targetCase);
+  if (!perm.allowed) {
+    return { success: false, error: perm.reason || 'Not authorized to delete this report.' };
+  }
+
+  const updatedCases = cases.filter(c => c.id !== caseId);
+  saveCases(updatedCases, isDemoMode);
+
+  // Preserve immutable audit history
+  logActivity(
+    'REPORT_DELETED',
+    caseId,
+    currentUser,
+    `Report ${caseId} ("${targetCase.title}") deleted by ${currentUser?.displayName || 'User'} (${currentUser?.role || 'user'})`,
+    {
+      deletedTitle: targetCase.title,
+      deletedCategory: targetCase.category,
+      deletedStatus: targetCase.status,
+      evidenceCount: targetCase.evidence.length,
+    }
+  );
+
+  return { success: true };
+}
+
+/**
+ * Explicitly resolves a case by an authorized maintenance resolver or admin.
+ * Requires resolution notes. Awards problem resolution points.
+ */
+export function resolveCaseExplicitly(
+  caseId: string,
+  currentUser: UserAccount | null,
+  resolutionNotes: string,
+  resolutionEvidenceUrl?: string,
+  isDemoMode = false
+): { success: boolean; updatedCase?: CivicCase; error?: string } {
+  const cases = loadCases(isDemoMode);
+  const targetIndex = cases.findIndex(c => c.id === caseId);
+
+  if (targetIndex === -1) {
+    return { success: false, error: 'Report not found in database.' };
+  }
+
+  const targetCase = cases[targetIndex];
+
+  // Authorization check
+  const perm = canUserResolveReport(currentUser, targetCase);
+  if (!perm.allowed) {
+    return { success: false, error: perm.reason || 'Not authorized to resolve this report.' };
+  }
+
+  const trimmedNotes = resolutionNotes.trim();
+  if (!trimmedNotes || trimmedNotes.length < 5) {
+    return { success: false, error: 'Resolution notes are required (at least 5 characters describing the repair).' };
+  }
+
+  const updatedCase: CivicCase = {
+    ...targetCase,
+    status: 'RESOLVED',
+    resolvedBy: currentUser?.displayName || 'Authorized Maintenance Specialist',
+    resolvedById: currentUser?.id,
+    resolvedAt: new Date().toISOString(),
+    resolutionNotes: trimmedNotes,
+    resolutionEvidenceUrl: resolutionEvidenceUrl || targetCase.resolutionEvidenceUrl || targetCase.verification?.afterImageUrl,
+    updatedAt: new Date().toISOString(),
+  };
+
+  cases[targetIndex] = updatedCase;
+  saveCases(cases, isDemoMode);
+
+  // Award resolution points to resolver
+  if (currentUser?.id) {
+    awardPoints(currentUser.id, caseId, 'RESOLUTION_COMPLETED', undefined, currentUser.id);
+    if (updatedCase.resolutionEvidenceUrl) {
+      awardPoints(currentUser.id, caseId, 'RESOLUTION_EVIDENCE_BONUS', undefined, currentUser.id);
+    }
+  }
+
+  // Log activity
+  logActivity(
+    'REPORT_RESOLVED',
+    caseId,
+    currentUser,
+    `Report resolved by ${currentUser?.displayName || 'Specialist'}: "${trimmedNotes}"`,
+    { resolutionNotes: trimmedNotes, hasEvidence: !!updatedCase.resolutionEvidenceUrl }
+  );
+
+  return { success: true, updatedCase };
 }
 
 /**

@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CommandBar, type AppTab } from './components/CommandBar';
 import { CaseFeed } from './features/cases/CaseFeed';
 import { CaseDetailWorkflow } from './features/cases/CaseDetailWorkflow';
 import { InspectWorkflow } from './features/inspect/InspectWorkflow';
 import { AboutView } from './components/AboutView';
+import { LeaderboardView } from './components/LeaderboardView';
 import { ModelConfigModal } from './components/ModelConfigModal';
+import { AuthModal } from './components/AuthModal';
+import { ProfileModal } from './components/ProfileModal';
 import { ReplayDirector } from './features/replay/ReplayDirector';
 
 import { 
   ClipboardList, 
   Camera, 
   Info,
+  Trophy,
   ShieldCheck,
   WifiOff,
   Download 
@@ -30,6 +34,9 @@ import {
   setDemoMode 
 } from './services/storage';
 
+import { getCurrentUser, logoutUser } from './services/auth';
+import { getPublicProfile } from './services/reputation';
+
 import { 
   brokenRampSvg, 
   rampRebarSvg, 
@@ -39,6 +46,7 @@ import {
 
 import type { CivicCase, EvidenceItem, MergeLog } from './types/case';
 import type { ApiConfig } from './types/ai';
+import type { UserAccount, PublicUserProfile } from './types/auth';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('reports');
@@ -52,6 +60,16 @@ export function App() {
 
   // Mobile reports view: 'list' | 'detail'
   const [mobileReportsView, setMobileReportsView] = useState<'list' | 'detail'>('list');
+  const [feedFilter, setFeedFilter] = useState<'All' | 'Active' | 'Resolved' | 'My Reports'>('All');
+
+  // Authenticated user state
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+
+  // Contributor profile modal
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
   // Modals & Replay
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
@@ -69,6 +87,12 @@ export function App() {
   // Active case in view
   const activeCase = cases.find(c => c.id === selectedCaseId) || (cases.length > 0 ? cases[0] : null);
 
+  // Resolved public profile for modal
+  const publicProfile: PublicUserProfile | null = useMemo(() => {
+    if (!selectedProfileUserId) return null;
+    return getPublicProfile(selectedProfileUserId);
+  }, [selectedProfileUserId]);
+
   // Save API key
   const handleSaveApiKey = (key: string) => {
     setApiKey(key);
@@ -81,7 +105,7 @@ export function App() {
     setSelectedModel(model);
   };
 
-  // Toggle Demo Mode (Strict isolation between real user data and demonstration dataset)
+  // Toggle Demo Mode
   const handleToggleDemoMode = () => {
     const nextMode = !isDemoMode;
     setIsDemoMode(nextMode);
@@ -105,6 +129,39 @@ export function App() {
   const handleUpdateCase = (updatedCase: CivicCase) => {
     const updated = saveOrUpdateCase(updatedCase, isDemoMode);
     setCases(updated);
+  };
+
+  // Handle case deleted
+  const handleDeleteCase = (deletedId: string) => {
+    const updated = cases.filter(c => c.id !== deletedId);
+    setCases(updated);
+    setSelectedCaseId(updated.length > 0 ? updated[0].id : null);
+    setMobileReportsView('list');
+  };
+
+  // Handle Auth Login / Register Success
+  const handleAuthSuccess = (user: UserAccount) => {
+    setCurrentUser(user);
+    setIsAuthModalOpen(false);
+  };
+
+  // Handle Logout
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUser(null);
+  };
+
+  // Open Contributor Profile
+  const handleOpenProfile = (userId: string) => {
+    setSelectedProfileUserId(userId);
+    setIsProfileModalOpen(true);
+  };
+
+  // Filter My Reports
+  const handleFilterMyReports = () => {
+    setActiveTab('reports');
+    setFeedFilter('My Reports');
+    setMobileReportsView('list');
   };
 
   // Clear local data
@@ -317,7 +374,7 @@ export function App() {
         <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 shadow-sm">
           <div className="flex items-center gap-2">
             <Download className="w-4 h-4 text-white shrink-0" />
-            <span>Install REPAIR.AI on your home screen for rapid field inspection.</span>
+            <span>Install REPAIR.AI on your device for rapid offline field inspection.</span>
           </div>
           <button
             type="button"
@@ -329,7 +386,7 @@ export function App() {
         </div>
       )}
 
-      {/* 1. Fixed Top CommandBar (Apple Glass, Stays Fixed) */}
+      {/* 1. Fixed Top CommandBar (macOS Translucent Glass, Stays Fixed) */}
       <CommandBar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -337,6 +394,14 @@ export function App() {
         isDemoMode={isDemoMode}
         onToggleDemoMode={handleToggleDemoMode}
         reportsCount={cases.length}
+        currentUser={currentUser}
+        onOpenAuth={() => {
+          setAuthModalTab('login');
+          setIsAuthModalOpen(true);
+        }}
+        onOpenProfile={handleOpenProfile}
+        onFilterMyReports={handleFilterMyReports}
+        onLogout={handleLogout}
       />
 
       {/* 2. Main Content View Area (Scrolls independently; Never covered by navigation) */}
@@ -359,6 +424,8 @@ export function App() {
                 onStartInspection={() => setActiveTab('inspect')}
                 isDemoMode={isDemoMode}
                 onToggleDemoMode={handleToggleDemoMode}
+                currentUserId={currentUser?.id}
+                initialFilter={feedFilter}
               />
             </div>
 
@@ -372,8 +439,12 @@ export function App() {
                 <CaseDetailWorkflow
                   civicCase={activeCase}
                   onUpdateCase={handleUpdateCase}
+                  onDeleteCase={handleDeleteCase}
+                  currentUser={currentUser}
                   apiConfig={apiConfig}
                   onBackToList={() => setMobileReportsView('list')}
+                  onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                  onSelectContributor={handleOpenProfile}
                 />
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
@@ -394,6 +465,15 @@ export function App() {
             onCancel={() => setActiveTab('reports')}
             apiConfig={apiConfig}
             isDemoMode={isDemoMode}
+            currentUser={currentUser}
+          />
+        )}
+
+        {activeTab === 'leaderboard' && (
+          <LeaderboardView
+            currentUser={currentUser}
+            onSelectContributor={handleOpenProfile}
+            onNavigateToReports={() => setActiveTab('reports')}
           />
         )}
 
@@ -412,7 +492,7 @@ export function App() {
         )}
       </main>
 
-      {/* 3. Fixed Mobile Bottom Tab Bar (Strictly 3 Destinations, Stays Fixed) */}
+      {/* 3. Fixed Mobile Bottom Tab Bar (macOS Glass Style, Stays Fixed) */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/85 border-t border-slate-200/70 px-4 py-1 pb-safe flex items-center justify-around shadow-lg">
         {/* Destination 1: Reports */}
         <button
@@ -421,7 +501,7 @@ export function App() {
             setActiveTab('reports');
             if (cases.length === 0) setMobileReportsView('list');
           }}
-          className={`min-h-[48px] min-w-[64px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
+          className={`min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
             activeTab === 'reports' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
           }`}
           aria-label="View Reports"
@@ -437,11 +517,11 @@ export function App() {
           <span>Reports</span>
         </button>
 
-        {/* Destination 2: Inspect (Centered iOS Action Pill) */}
+        {/* Destination 2: Inspect (Centered Action Pill) */}
         <button
           type="button"
           onClick={() => setActiveTab('inspect')}
-          className={`min-h-[48px] min-w-[76px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-all ${
+          className={`min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-all ${
             activeTab === 'inspect'
               ? 'text-blue-600 font-bold'
               : 'text-slate-500 hover:text-slate-800'
@@ -458,11 +538,24 @@ export function App() {
           <span>Inspect</span>
         </button>
 
-        {/* Destination 3: About */}
+        {/* Destination 3: Leaderboard */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('leaderboard')}
+          className={`min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
+            activeTab === 'leaderboard' ? 'text-amber-700 font-bold' : 'text-slate-500 hover:text-slate-800'
+          }`}
+          aria-label="Reputation & Leaderboard"
+        >
+          <Trophy className="w-5 h-5" />
+          <span>Ranks</span>
+        </button>
+
+        {/* Destination 4: About */}
         <button
           type="button"
           onClick={() => setActiveTab('about')}
-          className={`min-h-[48px] min-w-[64px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
+          className={`min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
             activeTab === 'about' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
           }`}
           aria-label="About & Settings"
@@ -472,7 +565,7 @@ export function App() {
         </button>
       </nav>
 
-      {/* Settings Modal (when triggered via top header gear) */}
+      {/* Simplified Model Settings Sheet */}
       <ModelConfigModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
@@ -482,6 +575,27 @@ export function App() {
         onSelectModel={handleSelectModel}
         isDemoMode={isDemoMode}
         onToggleDemoMode={handleToggleDemoMode}
+      />
+
+      {/* Contributor Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        profile={publicProfile}
+        currentUserId={currentUser?.id}
+        onViewReport={reportId => {
+          setSelectedCaseId(reportId);
+          setActiveTab('reports');
+          setMobileReportsView('detail');
+        }}
+      />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialTab={authModalTab}
       />
 
       {/* Guided Community Problem Replay Overlay */}
