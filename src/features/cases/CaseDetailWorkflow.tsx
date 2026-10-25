@@ -23,6 +23,7 @@ import { ImageComparisonSlider } from '../../components/ImageComparisonSlider';
 import { repairedRampSvg } from '../../data/presetAssets';
 import { verifyRepairsMultimodal } from '../../services/ai';
 import type { ApiConfig } from '../../types/ai';
+import { processAndCompressImage } from '../../utils/imageUtils';
 
 interface CaseDetailWorkflowProps {
   civicCase: CivicCase;
@@ -40,7 +41,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
   const [copiedToast, setCopiedToast] = useState<boolean>(false);
   const [newAnswers, setNewAnswers] = useState<Record<string, string>>({});
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
-  const [comparisonMode, setComparisonMode] = useState<'slider' | 'side-by-side'>('slider');
+  const [comparisonMode, setComparisonMode] = useState<'slider' | 'stacked' | 'side-by-side'>('slider');
 
   // After-image state for verification
   const [afterImageUrl, setAfterImageUrl] = useState<string>(
@@ -577,13 +578,13 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Comparison Mode Toggle */}
               <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
                 <button
                   type="button"
                   onClick={() => setComparisonMode('slider')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  className={`min-h-[34px] px-2.5 py-1 rounded-md font-medium transition-colors ${
                     comparisonMode === 'slider'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -593,8 +594,19 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setComparisonMode('stacked')}
+                  className={`min-h-[34px] px-2.5 py-1 rounded-md font-medium transition-colors ${
+                    comparisonMode === 'stacked'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Stacked
+                </button>
+                <button
+                  type="button"
                   onClick={() => setComparisonMode('side-by-side')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  className={`min-h-[34px] px-2.5 py-1 rounded-md font-medium transition-colors hidden sm:block ${
                     comparisonMode === 'side-by-side'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -604,24 +616,31 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
                 </button>
               </div>
 
-              {/* Upload After-Image Action */}
-              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 cursor-pointer transition-colors">
+              {/* Upload After-Image Action with mobile compression */}
+              <label className="min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5 text-slate-600" />
                 <span>Upload After-Photo</span>
                 <input
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   className="hidden"
-                  onChange={e => {
+                  onChange={async e => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        if (typeof reader.result === 'string') {
-                          setAfterImageUrl(reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
+                      try {
+                        const processed = await processAndCompressImage(file, 1600, 0.85);
+                        setAfterImageUrl(processed.dataUrl);
+                      } catch {
+                        // Fallback to simple FileReader
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === 'string') {
+                            setAfterImageUrl(reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
                     }
                   }}
                 />
@@ -632,7 +651,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
                 type="button"
                 onClick={handleRunVerification}
                 disabled={isVerifying}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-xs transition-colors"
+                className="min-h-[38px] inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all active:scale-95"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 {isVerifying ? 'Comparing...' : 'Verify Repair'}
@@ -648,10 +667,41 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
               beforeLabel="Before (Reported Incident)"
               afterLabel="After (Contractor Repair)"
             />
+          ) : comparisonMode === 'stacked' ? (
+            <div className="space-y-4">
+              {/* Stacked Before */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-rose-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Before Repair (Reported Incident)
+                  </span>
+                  <span className="text-slate-400">Original Condition</span>
+                </div>
+                <div className="w-full aspect-16/10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-xs">
+                  <img src={beforeImageUrl} alt="Before repair" className="w-full h-full object-cover" />
+                </div>
+              </div>
+
+              {/* Stacked After */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    After Repair (Completed Work)
+                  </span>
+                  <span className="text-slate-400">Post-Contractor Resolution</span>
+                </div>
+                <div className="w-full aspect-16/10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-xs">
+                  <img src={afterImageUrl} alt="After repair" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <span className="text-xs font-semibold text-rose-700 block">
+                <span className="text-xs font-semibold text-rose-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
                   Before Repair (Reported Incident)
                 </span>
                 <div className="w-full aspect-16/10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
@@ -660,7 +710,8 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-xs font-semibold text-emerald-700 block">
+                <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   After Repair (Completed Work)
                 </span>
                 <div className="w-full aspect-16/10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
