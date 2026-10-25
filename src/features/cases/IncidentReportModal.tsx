@@ -5,16 +5,20 @@ import {
   GitMerge, 
   Trash2, 
   Camera,
+  Image as ImageIcon,
   Check,
   ChevronRight,
   ChevronLeft,
-  ShieldCheck
+  ShieldCheck,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import type { CampusZone, CivicCase, EvidenceItem, IssueCategory } from '../../types/case';
 import { EVIDENCE_PRESETS, type EvidencePreset } from '../../data/presetAssets';
 import { findDuplicatesForReport } from '../../services/duplicateMatching';
 import { analyzeIncidentEvidence } from '../../services/ai';
 import type { ApiConfig, DuplicateMatchResult } from '../../types/ai';
+import { processAndCompressImage, validateImageFile, type ProcessedImageInfo } from '../../utils/imageUtils';
 
 const ZONES: CampusZone[] = [
   'Main Library',
@@ -62,15 +66,19 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
   const [landmark, setLandmark] = useState<string>(EVIDENCE_PRESETS[0].landmark);
   const [description, setDescription] = useState<string>(EVIDENCE_PRESETS[0].description);
   const [reporterLabel, setReporterLabel] = useState<string>(EVIDENCE_PRESETS[0].reporterLabel);
+  const [imageMetadata, setImageMetadata] = useState<ProcessedImageInfo | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Apply a preset
   const handleSelectPreset = (preset: EvidencePreset) => {
     setSelectedPresetId(preset.id);
     setImageUrl(preset.imageUrl);
+    setImageMetadata(null);
     setTitle(preset.title);
     setCategory(preset.category);
     setZone(preset.zone);
@@ -80,34 +88,35 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
     setUploadError(null);
   };
 
-  // Real file upload with validation
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Real file upload with mobile-optimized compression and validation
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setUploadError(null);
     const file = e.target.files?.[0];
+    // Reset file input value so re-selecting same photo triggers onChange
+    e.target.value = '';
+
     if (!file) return;
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
-    if (!validTypes.includes(file.type)) {
-      setUploadError('Invalid file format. Please upload a JPEG, PNG, WebP, or SVG photograph.');
+    // Validate format and size first
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setUploadError(validation.error || 'Invalid image file.');
       return;
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError('File size exceeds 8MB limit. Please provide a compressed image.');
-      return;
+    setIsProcessingImage(true);
+    try {
+      // Downscale to max 1600px dimension and convert to high quality WebP/JPEG
+      const processed = await processAndCompressImage(file, 1600, 0.85);
+      setImageUrl(processed.dataUrl);
+      setImageMetadata(processed);
+      setSelectedPresetId('custom-upload');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to process image.';
+      setUploadError(msg);
+    } finally {
+      setIsProcessingImage(false);
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImageUrl(reader.result);
-        setSelectedPresetId('custom-upload');
-      }
-    };
-    reader.onerror = () => {
-      setUploadError('Failed to read image file from disk.');
-    };
-    reader.readAsDataURL(file);
   };
 
   // Live duplicate detection
@@ -272,54 +281,127 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
                 </label>
 
                 <div className="relative w-full aspect-16/10 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex items-center justify-center">
-                  {imageUrl ? (
+                  {isProcessingImage ? (
+                    <div className="p-6 text-center flex flex-col items-center justify-center space-y-2">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                      <span className="text-sm font-semibold text-slate-800">
+                        Optimizing image for field inspection...
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        Preserving visual detail while reducing mobile memory usage
+                      </span>
+                    </div>
+                  ) : imageUrl ? (
                     <>
                       <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      
+                      {/* Image Metadata Badge */}
+                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-slate-900/80 text-white text-[11px] font-mono backdrop-blur-xs flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>
+                          {imageMetadata
+                            ? `${imageMetadata.width} × ${imageMetadata.height} • ${(imageMetadata.compressedSizeBytes / 1024).toFixed(0)} KB`
+                            : 'Field Ready Asset'}
+                        </span>
+                      </div>
+
+                      {/* Action buttons on photo */}
                       <div className="absolute top-3 right-3 flex gap-2">
                         <button
                           type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-3 py-1.5 rounded-lg bg-white/95 text-slate-800 text-xs font-medium border border-slate-200 shadow-sm hover:bg-white"
+                          onClick={() => galleryInputRef.current?.click()}
+                          className="min-h-[36px] px-3 py-1.5 rounded-lg bg-white/95 text-slate-800 text-xs font-semibold border border-slate-200 shadow-sm hover:bg-white"
                         >
                           Change Photo
                         </button>
                         <button
                           type="button"
-                          onClick={() => setImageUrl('')}
-                          className="p-1.5 rounded-lg bg-white/95 text-rose-600 text-xs font-medium border border-slate-200 shadow-sm hover:bg-rose-50"
-                          title="Remove"
+                          onClick={() => {
+                            setImageUrl('');
+                            setImageMetadata(null);
+                          }}
+                          className="min-h-[36px] min-w-[36px] p-2 rounded-lg bg-white/95 text-rose-600 text-xs font-semibold border border-slate-200 shadow-sm hover:bg-rose-50 flex items-center justify-center"
+                          title="Remove Photo"
+                          aria-label="Remove Photo"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </>
                   ) : (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-6 text-center cursor-pointer hover:bg-slate-100/60 w-full h-full flex flex-col items-center justify-center"
-                    >
-                      <Camera className="w-8 h-8 text-slate-400 mb-2" />
-                      <span className="text-sm font-medium text-slate-700">
-                        Upload a photo or capture with camera
-                      </span>
-                      <span className="text-xs text-slate-400 mt-1">
-                        JPEG, PNG, WebP or SVG up to 8MB
+                    <div className="p-6 text-center w-full h-full flex flex-col items-center justify-center space-y-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => cameraInputRef.current?.click()}
+                          className="min-h-[44px] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold shadow-sm hover:bg-blue-700 active:scale-95 transition-all"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>Use Camera</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          className="min-h-[44px] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-700 text-xs font-semibold border border-slate-300 shadow-xs hover:bg-slate-50 active:scale-95 transition-all"
+                        >
+                          <ImageIcon className="w-4 h-4 text-slate-500" />
+                          <span>Choose from Gallery</span>
+                        </button>
+                      </div>
+                      <span className="text-xs text-slate-400">
+                        JPEG, PNG, WebP or SVG up to 20MB (automatically compressed)
                       </span>
                     </div>
                   )}
                 </div>
 
+                {/* Dual Native Hidden Inputs */}
+                {/* Camera input with capture attribute */}
                 <input
-                  ref={fileInputRef}
+                  ref={cameraInputRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
                   className="hidden"
-                  onChange={handleFileUpload}
+                  onChange={handleFileSelect}
+                />
+                {/* Gallery input without capture attribute */}
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={handleFileSelect}
                 />
 
+                {/* Quick Camera & Gallery shortcuts when image is already selected */}
+                {imageUrl && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 transition-colors"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Retake with Camera</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 transition-colors"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Upload from Gallery</span>
+                    </button>
+                  </div>
+                )}
+
                 {uploadError && (
-                  <p className="text-xs text-rose-600 font-medium">{uploadError}</p>
+                  <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span>{uploadError}</span>
+                  </div>
                 )}
               </div>
 
@@ -526,13 +608,13 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-slate-50 pb-safe">
           <div>
             {currentStep > 1 && (
               <button
                 type="button"
                 onClick={() => setCurrentStep((currentStep - 1) as 1 | 2 | 3 | 4)}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+                className="min-h-[44px] inline-flex items-center gap-1 px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Back
@@ -545,7 +627,7 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+              className="min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
             >
               Cancel
             </button>
@@ -559,7 +641,7 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
                   setCurrentStep((currentStep + 1) as 1 | 2 | 3 | 4);
                 }}
                 disabled={(currentStep === 1 && !imageUrl) || (currentStep === 2 && !description.trim())}
-                className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium transition-colors"
+                className="min-h-[44px] inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold transition-colors shadow-xs active:scale-95"
               >
                 <span>Continue</span>
                 <ChevronRight className="w-4 h-4" />
@@ -569,10 +651,10 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
                 type="button"
                 onClick={handleSubmitNewCase}
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium shadow-sm transition-colors"
+                className="min-h-[44px] inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-all active:scale-95"
               >
                 <Check className="w-4 h-4 stroke-[2.5]" />
-                {isSubmitting ? 'Analyzing & Submitting...' : 'Submit Incident Report'}
+                {isSubmitting ? 'Analyzing & Submitting...' : 'Submit Report'}
               </button>
             )}
           </div>
