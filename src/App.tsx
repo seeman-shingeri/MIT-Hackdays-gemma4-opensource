@@ -12,8 +12,11 @@ import {
   Plus, 
   Play, 
   HelpCircle,
-  ShieldCheck 
+  ShieldCheck,
+  WifiOff,
+  Download 
 } from 'lucide-react';
+import { useOnlineStatus, usePwaInstallPrompt } from './services/pwa';
 
 import { 
   loadCases, 
@@ -62,6 +65,10 @@ export function App() {
   const [selectedModelName, setSelectedModelName] = useState<string>(() => getSelectedModel());
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => getDemoMode());
   const [aiCallsCount, setAiCallsCount] = useState<number>(3); // Initial seeded count
+
+  // PWA and Network state
+  const isOnline = useOnlineStatus();
+  const { installPrompt, triggerInstall } = usePwaInstallPrompt();
 
   // Active case
   const activeCase = cases.find(c => c.id === selectedCaseId) || cases[0];
@@ -295,6 +302,38 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
+      {/* Offline Status Warning Banner */}
+      {!isOnline && (
+        <div className="bg-amber-500 text-amber-950 px-4 py-2 text-xs font-semibold flex items-center justify-between gap-2 shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-amber-950 shrink-0" />
+            <span>
+              <strong>Offline Mode Active:</strong> Field records and Community Problem Replay remain fully operational. Live Gemma API analysis requires internet connectivity.
+            </span>
+          </div>
+          <span className="hidden sm:inline-block text-[11px] bg-amber-600/30 px-2 py-0.5 rounded text-amber-950">
+            Local Persistence Ready
+          </span>
+        </div>
+      )}
+
+      {/* PWA Install Promotion Banner (when browser prompt is available) */}
+      {installPrompt && (
+        <div className="bg-blue-600 text-white px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Download className="w-4 h-4 text-white shrink-0" />
+            <span>Install REPAIR.AI on your device for one-tap field access &amp; offline reliability.</span>
+          </div>
+          <button
+            type="button"
+            onClick={triggerInstall}
+            className="min-h-[32px] px-3 py-1 rounded-md bg-white text-blue-700 font-bold hover:bg-blue-50 active:scale-95 transition-all"
+          >
+            Install App
+          </button>
+        </div>
+      )}
+
       {/* 1. Simplified Main Navigation */}
       <CommandBar
         onOpenReportModal={() => setIsReportModalOpen(true)}

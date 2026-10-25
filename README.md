@@ -165,7 +165,32 @@ npm run build
 
 ---
 
-## 8. Open Source & Attribution
+## 8. Mobile PWA Installation & Field Usage
+
+REPAIR.AI is an installable Progressive Web Application (PWA) with native-style mobile responsiveness, client-side camera downscaling, and offline application shell caching.
+
+### Android Installation (Chrome / Edge / Firefox)
+1. Open the application URL in **Chrome** or your preferred Android browser.
+2. An **"Install App"** prompt banner will appear automatically at the top of the screen.
+3. Tap **"Install App"** (or tap browser menu `⋮` $\rightarrow$ **"Add to Home screen"** / **"Install application"**).
+4. REPAIR.AI will install with a standalone launcher icon and launch without browser chrome.
+
+### iOS Installation (Safari)
+1. Open the application URL in **Apple Safari**.
+2. Tap the **Share** button (box with upward arrow $\uparrow$) in the bottom toolbar.
+3. Scroll down and tap **"Add to Home Screen"**.
+4. Confirm the name **REPAIR.AI** and tap **"Add"**.
+5. Launch from your Home Screen in standalone mode.
+
+### Offline Resilience & Security Guarantees
+- **Cached Shell:** Application UI, local SVG evidence assets, and case database load instantly even with zero network connectivity.
+- **Offline Demonstration:** The full 5-stage **Community Problem Replay** operates 100% offline without needing API calls or internet access.
+- **Privacy & Security:** Service worker strictly excludes external API calls (`generativelanguage.googleapis.com` and remote databases). **API keys and private user photos are never cached indiscriminately in the service worker.**
+- **Network Transparency:** When offline, an explicit warning badge communicates that live multimodal AI analysis requires an active connection, preventing false assumptions of offline ML execution.
+
+---
+
+## 9. Open Source & Attribution
 
 - **License:** [MIT License](LICENSE)
 - **Model Terms:** [Google Gemma Terms of Use](https://ai.google.dev/gemma/terms) and [Gemini API Terms](https://ai.google.dev/gemini-api/terms)
