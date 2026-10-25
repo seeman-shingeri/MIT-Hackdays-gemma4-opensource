@@ -1,26 +1,23 @@
 import React, { useState } from 'react';
 import { 
-  FileText, 
-  Sparkles, 
-  AlertTriangle, 
+  MapPin, 
+  Clock, 
+  User, 
   CheckCircle2, 
-  HelpCircle, 
-  GitMerge, 
+  AlertTriangle, 
+  Sparkles, 
+  ShieldCheck, 
   Printer, 
   Copy, 
-  ShieldCheck, 
-  Clock, 
-  MapPin, 
-  Layers, 
+  Check, 
+  Upload, 
+  ChevronLeft,
+  Layers,
+  Wrench,
   AlertOctagon,
-  Check,
-  Upload
+  FileText
 } from 'lucide-react';
-import type { 
-  CivicCase, 
-  ClarificationAnswer, 
-  CaseStatus 
-} from '../../types/case';
+import type { CivicCase, ClarificationAnswer, CaseStatus } from '../../types/case';
 import { copyDossierToClipboard } from '../../services/dossierExport';
 import { ImageComparisonSlider } from '../../components/ImageComparisonSlider';
 import { repairedRampSvg } from '../../data/presetAssets';
@@ -31,31 +28,30 @@ interface CaseDetailWorkflowProps {
   civicCase: CivicCase;
   onUpdateCase: (updatedCase: CivicCase) => void;
   apiConfig: ApiConfig;
+  onBackToList?: () => void;
 }
-
-type TabType = 'analysis' | 'evidence' | 'dossier' | 'verification';
 
 export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
   civicCase,
   onUpdateCase,
   apiConfig,
+  onBackToList,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('analysis');
   const [copiedToast, setCopiedToast] = useState<boolean>(false);
   const [newAnswers, setNewAnswers] = useState<Record<string, string>>({});
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [comparisonMode, setComparisonMode] = useState<'slider' | 'side-by-side'>('slider');
 
-  // Verification tab state
+  // After-image state for verification
   const [afterImageUrl, setAfterImageUrl] = useState<string>(
     civicCase.verification?.afterImageUrl || repairedRampSvg
   );
-  const [viewMode, setViewMode] = useState<'slider' | 'side-by-side'>('slider');
 
-  // Primary image
   const primaryEvidence = civicCase.evidence[0];
   const beforeImageUrl = primaryEvidence?.imageUrl || '';
+  const ai = civicCase.aiAnalysis;
 
-  // Handle Copy Markdown
+  // Handle Copy Markdown Work Order
   const handleCopyMarkdown = async () => {
     const success = await copyDossierToClipboard(civicCase);
     if (success) {
@@ -69,7 +65,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
     window.print();
   };
 
-  // Handle answering a clarifying question
+  // Handle human clarification answer
   const handleSaveAnswer = (question: string, questionId: string) => {
     const answerText = newAnswers[questionId]?.trim();
     if (!answerText) return;
@@ -79,7 +75,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
       question,
       answer: answerText,
       answeredAt: new Date().toISOString(),
-      answeredBy: 'Campus Operations Reviewer',
+      answeredBy: 'Field Operations Reviewer',
     };
 
     const updatedAnswers = [
@@ -107,7 +103,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
     onUpdateCase(updatedCase);
   };
 
-  // Handle AI Verification
+  // Handle AI Multimodal Verification
   const handleRunVerification = async () => {
     setIsVerifying(true);
     try {
@@ -134,504 +130,419 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
     }
   };
 
-  const ai = civicCase.aiAnalysis;
-
   return (
-    <main className="flex-1 flex flex-col bg-[#090D16] overflow-y-auto h-full">
+    <div className="flex-1 overflow-y-auto bg-slate-50 min-h-full">
       {/* Toast Notification */}
       {copiedToast && (
-        <div className="fixed top-16 right-6 z-50 px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-mono text-xs font-bold shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-          <Check className="w-4 h-4 stroke-[3]" />
-          <span>Markdown Work Order copied to clipboard!</span>
+        <div className="fixed top-20 right-6 z-50 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium shadow-lg flex items-center gap-2 animate-in fade-in duration-150">
+          <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
+          <span>Work order copied to clipboard (Markdown)</span>
         </div>
       )}
 
-      {/* Case Header & Command Bar */}
-      <section className="p-4 sm:p-6 border-b border-slate-800 bg-slate-900/40">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1.5 max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-500/30 px-2 py-0.5 rounded">
-                {civicCase.id}
-              </span>
-              <span className="font-mono text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded">
-                {civicCase.category}
-              </span>
-              <span className="font-mono text-xs text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                {new Date(civicCase.createdAt).toLocaleString()}
-              </span>
+      {/* Main Content Container */}
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Mobile Back Action Button */}
+        {onBackToList && (
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="lg:hidden inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 mb-2 py-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back to all reports
+          </button>
+        )}
+
+        {/* 1. Header Section: Title, Status, and Quick Actions */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                  {civicCase.category}
+                </span>
+                <span className="text-slate-500 font-mono">
+                  {civicCase.id}
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-slate-500 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  {new Date(civicCase.createdAt).toLocaleDateString()} at {new Date(civicCase.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-snug">
+                {civicCase.title}
+              </h1>
+
+              <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                <span>{civicCase.zone} — {civicCase.landmark}</span>
+              </div>
             </div>
 
-            <h1 className="text-lg sm:text-xl font-bold text-slate-100 tracking-tight leading-snug">
-              {civicCase.title}
-            </h1>
+            {/* Status Selector & Priority Indicator */}
+            <div className="flex flex-col sm:items-end gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 font-medium">Status:</label>
+                <select
+                  value={civicCase.status}
+                  onChange={e => handleStatusChange(e.target.value as CaseStatus)}
+                  className="bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 focus:bg-white"
+                >
+                  <option value="REPORTED">Reported</option>
+                  <option value="UNDER_REVIEW">Under Review</option>
+                  <option value="WORK_ORDER_ISSUED">Assigned / Work Order</option>
+                  <option value="REPAIR_IN_PROGRESS">Repair in Progress</option>
+                  <option value="VISUALLY_VERIFIED">Visually Verified</option>
+                  <option value="RESOLVED">Resolved</option>
+                </select>
+              </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
-              <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-              <span>{civicCase.zone} • {civicCase.landmark}</span>
+              <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                <span>Priority Level:</span>
+                <span className={`font-semibold px-2 py-0.5 rounded text-xs ${
+                  civicCase.priorityScore > 85
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {civicCase.priorityScore}/100 ({civicCase.severity})
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopyMarkdown}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-slate-700 transition-colors"
-              title="Copy formatted Markdown ticket"
-            >
-              <Copy className="w-3.5 h-3.5 text-sky-400" />
-              <span>Copy MD</span>
-            </button>
+          {/* Action Button Bar */}
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <User className="w-3.5 h-3.5 text-slate-400" />
+              <span>Reported by: <strong className="text-slate-700">{primaryEvidence?.reporterLabel || 'Campus Citizen'}</strong></span>
+            </div>
 
-            <button
-              type="button"
-              onClick={handlePrintDossier}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-slate-700 transition-colors"
-              title="Export or print dossier PDF"
-            >
-              <Printer className="w-3.5 h-3.5 text-amber-400" />
-              <span>Export / Print</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyMarkdown}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5 text-slate-600" />
+                <span>Copy Work Order</span>
+              </button>
 
-            {/* Status Dropdown */}
-            <select
-              value={civicCase.status}
-              onChange={e => handleStatusChange(e.target.value as CaseStatus)}
-              className="bg-slate-900 border border-slate-700 text-xs font-mono text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500"
-            >
-              <option value="REPORTED">REPORTED</option>
-              <option value="UNDER_REVIEW">UNDER REVIEW</option>
-              <option value="WORK_ORDER_ISSUED">WORK ORDER ISSUED</option>
-              <option value="REPAIR_IN_PROGRESS">IN PROGRESS</option>
-              <option value="VISUALLY_VERIFIED">VISUALLY VERIFIED</option>
-              <option value="RESOLVED">RESOLVED</option>
-            </select>
+              <button
+                type="button"
+                onClick={handlePrintDossier}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+                <span>Print / PDF</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Tab Navigation Navigation */}
-        <div className="flex items-center gap-2 mt-5 border-b border-slate-800 text-xs font-mono">
-          <button
-            type="button"
-            onClick={() => setActiveTab('analysis')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-              activeTab === 'analysis'
-                ? 'border-sky-500 text-sky-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Gemma Analysis & Uncertainty</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('evidence')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-              activeTab === 'evidence'
-                ? 'border-sky-500 text-sky-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Evidence Gallery ({civicCase.evidence.length})</span>
-            {civicCase.mergeHistory.length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-purple-400" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('dossier')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-              activeTab === 'dossier'
-                ? 'border-sky-500 text-sky-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Maintenance Work Order</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('verification')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-              activeTab === 'verification'
-                ? 'border-sky-500 text-sky-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Visual Verification</span>
-            {civicCase.verification && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            )}
-          </button>
-        </div>
-      </section>
-
-      {/* Tab 1: Gemma Multimodal Analysis & Epistemic Uncertainty */}
-      {activeTab === 'analysis' && (
-        <div className="p-4 sm:p-6 space-y-6 max-w-5xl">
-          {/* Primary Evidence Visual Banner */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-800">
-            <div className="w-full h-48 md:h-full rounded-lg overflow-hidden bg-slate-950 border border-slate-800">
-              <img
-                src={beforeImageUrl}
-                alt="Primary reported evidence"
-                className="w-full h-full object-cover"
-              />
+        {/* 2. Main Evidence Photograph (Natural Presentation) */}
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <span>Main Evidence Photograph</span>
+              <span className="text-xs text-slate-400 font-normal">
+                ({civicCase.evidence.length} {civicCase.evidence.length === 1 ? 'submission' : 'submissions'})
+              </span>
             </div>
-            <div className="md:col-span-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
-                  Initial Photographic Observation
-                </span>
-                <span className="text-[11px] font-mono text-slate-500">
-                  {primaryEvidence?.reporterLabel}
-                </span>
-              </div>
-              <p className="text-xs text-slate-200 leading-relaxed font-mono">
-                "{primaryEvidence?.description}"
-              </p>
-              <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400 flex flex-wrap gap-3">
-                <span>Model: <strong className="text-sky-400">{ai?.modelUsed || apiConfig.selectedModel}</strong></span>
-                <span>Confidence: <strong className="text-emerald-400">{((ai?.confidenceScore || 0.9) * 100).toFixed(0)}%</strong></span>
-                <span>Severity: <strong className="text-rose-400">{ai?.severity || civicCase.severity}</strong></span>
-              </div>
-            </div>
+            <span className="text-xs text-slate-500">
+              Verified Resolution
+            </span>
           </div>
 
-          {/* TWO DISTINCT EPISTEMIC SECTIONS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* 1. What the AI can infer */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2 text-sky-400 font-mono text-xs font-bold uppercase tracking-wider">
+          <div className="w-full bg-slate-100 aspect-16/10 sm:aspect-16/9 overflow-hidden flex items-center justify-center">
+            <img
+              src={beforeImageUrl}
+              alt="Reported infrastructure damage"
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          <div className="p-4 bg-slate-50 border-t border-slate-100 text-sm text-slate-700 leading-relaxed">
+            <p className="font-medium text-slate-900 mb-0.5">Reported Observation:</p>
+            <p className="text-slate-600">{primaryEvidence?.description}</p>
+          </div>
+        </div>
+
+        {/* 3. AI Analysis & Inspection Findings (Trustworthy & Human-Readable) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Sparkles className="w-4 h-4" />
-                What the AI Can Infer (Visual Observations)
               </div>
-
-              <div>
-                <span className="text-[11px] font-mono text-slate-400 block mb-1">
-                  Detected Physical Hazards
-                </span>
-                <div className="space-y-1.5">
-                  {ai?.detectedHazards.map((h, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-slate-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-                      <span>{h}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[11px] font-mono text-slate-400 block mb-1">
-                  Accessibility & Mobility Impact
-                </span>
-                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  {ai?.accessibilityImpact}
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[11px] font-mono text-slate-400 block mb-1">
-                  Urgency & Recommended Containment
-                </span>
-                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  {ai?.recommendedAction}
-                </p>
-              </div>
+              <h2 className="text-base font-semibold text-slate-900">
+                AI Inspection Findings
+              </h2>
             </div>
-
-            {/* 2. What still needs confirmation */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold uppercase tracking-wider">
-                <HelpCircle className="w-4 h-4" />
-                What Still Needs Confirmation (Epistemic Uncertainty)
-              </div>
-
-              <div>
-                <span className="text-[11px] font-mono text-slate-400 block mb-1">
-                  Visual Limitations & Unverified Assumptions
-                </span>
-                <div className="space-y-1.5">
-                  {ai?.uncertaintyFlags.map((u, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-amber-200/90 bg-amber-950/20 p-2 rounded border border-amber-500/20">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-                      <span>{u}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Clarification Questions Input */}
-              <div className="space-y-3 pt-2">
-                <span className="text-[11px] font-mono text-slate-400 block">
-                  Interactive Clarification Prompts (Answers update dossier)
-                </span>
-
-                {ai?.clarifyingQuestions.map((q, idx) => {
-                  const qId = `q-${idx}`;
-                  const existingAnswer = civicCase.clarificationAnswers.find(
-                    a => a.questionId === qId || a.question === q
-                  );
-
-                  return (
-                    <div key={idx} className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
-                      <div className="text-xs font-semibold text-slate-200 flex items-start gap-1.5">
-                        <span className="text-sky-400 font-mono font-bold">Q{idx + 1}:</span>
-                        <span>{q}</span>
-                      </div>
-
-                      {existingAnswer ? (
-                        <div className="bg-emerald-950/30 border border-emerald-500/30 p-2 rounded text-xs text-emerald-300 flex items-start justify-between gap-2">
-                          <div>
-                            <span className="font-bold">Answer: </span>
-                            {existingAnswer.answer}
-                            <div className="text-[10px] text-emerald-400/80 font-mono mt-0.5">
-                              Recorded by {existingAnswer.answeredBy} • {new Date(existingAnswer.answeredAt).toLocaleTimeString()}
-                            </div>
-                          </div>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newAnswers[qId] || ''}
-                            onChange={e =>
-                              setNewAnswers(prev => ({ ...prev, [qId]: e.target.value }))
-                            }
-                            placeholder="Type human on-site clarification..."
-                            className="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-sky-500 font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSaveAnswer(q, qId)}
-                            disabled={!newAnswers[qId]?.trim()}
-                            className="px-3 py-1 rounded bg-sky-500 hover:bg-sky-400 disabled:opacity-40 text-slate-950 text-xs font-mono font-bold transition-colors"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <span className="text-xs text-slate-500">
+              {ai?.isSimulated ? 'Simulated Inspection' : `Engine: ${ai?.modelUsed || apiConfig.selectedModel}`}
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* Tab 2: Evidence Gallery & Duplicate Merge History */}
-      {activeTab === 'evidence' && (
-        <div className="p-4 sm:p-6 space-y-6 max-w-5xl">
-          {/* Duplicate Clustering Summary */}
-          {civicCase.mergeHistory.length > 0 && (
-            <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/40 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-mono font-bold text-purple-300 uppercase tracking-wider">
-                <GitMerge className="w-4 h-4" />
-                Duplicate Evidence Convergence Log ({civicCase.mergeHistory.length} Merges)
+          {/* Three Differentiated Sections (OBSERVED, NEEDS VERIFICATION, SUGGESTED NEXT STEP) */}
+          <div className="space-y-4">
+            {/* A. OBSERVED */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="text-xs font-bold text-slate-800 tracking-wider uppercase flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                Observed Physical Evidence
               </div>
-              <div className="space-y-2">
-                {civicCase.mergeHistory.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 bg-slate-950 rounded-lg border border-purple-500/20 text-xs font-mono space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-purple-300 font-bold">
-                      <span>Report {m.mergedReportId} • {m.reporterLabel}</span>
-                      <span className="text-emerald-400">{m.duplicateScore}% Match</span>
-                    </div>
-                    <div className="text-slate-400 text-[11px]">
-                      Breakdown: Zone ({m.scoreBreakdown.zoneScore}pts) • Category ({m.scoreBreakdown.categoryScore}pts) • Keyword Overlap ({m.scoreBreakdown.keywordScore}pts)
-                    </div>
-                    <div className="text-slate-300 text-[11px] font-sans">
-                      {m.reason}
-                    </div>
+              <p className="text-xs text-slate-500">
+                Identified directly from visible photographic features:
+              </p>
+              <div className="space-y-1.5 pt-1">
+                {ai?.detectedHazards.map((hazard, i) => (
+                  <div key={i} className="flex items-start gap-2 text-sm text-slate-800">
+                    <span className="text-blue-600 font-bold shrink-0 mt-0.5">•</span>
+                    <span>{hazard}</span>
                   </div>
                 ))}
               </div>
+
+              <div className="pt-2 text-xs text-slate-600 border-t border-slate-200/80">
+                <strong>Accessibility Impact:</strong> {ai?.accessibilityImpact}
+              </div>
             </div>
-          )}
 
-          {/* Evidence Photos Grid */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">
-              Corroborating Photographic Submissions ({civicCase.evidence.length})
-            </h3>
+            {/* B. NEEDS VERIFICATION */}
+            <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 space-y-3">
+              <div className="text-xs font-bold text-amber-900 tracking-wider uppercase flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                Needs Verification (Human Confirmation Required)
+              </div>
+              <p className="text-xs text-amber-800">
+                The following structural and safety aspects cannot be certified from photographic evidence alone:
+              </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {civicCase.evidence.map((ev, idx) => (
-                <div
-                  key={ev.id}
-                  className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden flex flex-col justify-between"
-                >
-                  <div className="w-full h-56 bg-slate-950 overflow-hidden relative">
+              <div className="space-y-1.5">
+                {ai?.uncertaintyFlags.map((flag, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs text-amber-900">
+                    <span className="text-amber-600 shrink-0 mt-0.5">⚠️</span>
+                    <span>{flag}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Clarification Prompts */}
+              {ai && ai.clarifyingQuestions.length > 0 && (
+                <div className="pt-2 border-t border-amber-200/80 space-y-2.5">
+                  <span className="text-xs font-semibold text-amber-900 block">
+                    Field Verification Questions:
+                  </span>
+
+                  {ai.clarifyingQuestions.map((q, idx) => {
+                    const qId = `q-${idx}`;
+                    const answered = civicCase.clarificationAnswers.find(
+                      a => a.questionId === qId || a.question === q
+                    );
+
+                    return (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-amber-200 text-xs space-y-1.5">
+                        <div className="font-medium text-slate-900">
+                          {q}
+                        </div>
+
+                        {answered ? (
+                          <div className="bg-emerald-50 text-emerald-800 p-2 rounded border border-emerald-200 flex items-start justify-between gap-2">
+                            <div>
+                              <strong>Field Answer:</strong> {answered.answer}
+                              <div className="text-[11px] text-emerald-600 mt-0.5">
+                                Verified by {answered.answeredBy}
+                              </div>
+                            </div>
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 pt-1">
+                            <input
+                              type="text"
+                              value={newAnswers[qId] || ''}
+                              onChange={e =>
+                                setNewAnswers(prev => ({ ...prev, [qId]: e.target.value }))
+                              }
+                              placeholder="Record human on-site confirmation..."
+                              className="flex-1 bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveAnswer(q, qId)}
+                              disabled={!newAnswers[qId]?.trim()}
+                              className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium"
+                            >
+                              Save Answer
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* C. SUGGESTED NEXT STEP */}
+            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200 space-y-1.5">
+              <div className="text-xs font-bold text-blue-900 tracking-wider uppercase flex items-center gap-1.5">
+                <Wrench className="w-4 h-4 text-blue-600" />
+                Suggested Next Step
+              </div>
+              <p className="text-sm text-blue-950 font-medium">
+                {ai?.recommendedAction}
+              </p>
+              <p className="text-xs text-blue-800">
+                Urgency justification: {ai?.urgencyRationale}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Corroborating Evidence & Merged Duplicate Reports */}
+        {civicCase.evidence.length > 1 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Corroborating Evidence Submissions ({civicCase.evidence.length} Photos)
+                </h2>
+              </div>
+              <span className="text-xs text-slate-500">
+                {civicCase.mergeHistory.length} Merged Duplicates
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {civicCase.evidence.map(ev => (
+                <div key={ev.id} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="w-full aspect-16/10 bg-slate-200 overflow-hidden">
                     <img
                       src={ev.imageUrl}
-                      alt={`Evidence ${idx + 1}`}
+                      alt=""
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-sky-400 font-mono text-[10px] font-bold">
-                      EVIDENCE #{idx + 1}
-                    </div>
-                    {ev.isPrimary && (
-                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-amber-500/90 text-slate-950 font-mono text-[10px] font-bold">
-                        ORIGINAL REPORT
-                      </div>
-                    )}
                   </div>
-
-                  <div className="p-3.5 space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                      <span className="font-bold text-slate-200">{ev.reporterLabel}</span>
-                      <span>{new Date(ev.timestamp).toLocaleTimeString()}</span>
+                  <div className="p-3 space-y-1 text-xs">
+                    <div className="flex items-center justify-between font-semibold text-slate-800">
+                      <span>{ev.reporterLabel}</span>
+                      <span className="text-slate-500 font-normal">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed font-mono">
-                      "{ev.description}"
-                    </p>
+                    <p className="text-slate-600 text-xs">{ev.description}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tab 3: Actionable Maintenance Dossier */}
-      {activeTab === 'dossier' && (
-        <div className="p-4 sm:p-6 space-y-6 max-w-4xl">
-          <div className="bg-white text-slate-900 rounded-xl p-6 sm:p-8 shadow-2xl space-y-6 dossier-print-container font-sans">
-            {/* Header */}
-            <div className="border-b-2 border-slate-900 pb-4 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="text-xs font-mono font-bold tracking-widest text-slate-600 uppercase">
-                  MUNICIPAL &amp; CAMPUS FACILITIES WORK ORDER
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-950 mt-1">
-                  {civicCase.title}
-                </h2>
-                <div className="text-xs font-mono text-slate-600 mt-1">
-                  Master Case ID: <strong className="text-slate-900">{civicCase.id}</strong> • Priority Score: <strong>{civicCase.priorityScore}/100</strong>
-                </div>
+        {/* 5. Maintenance Work Order Section */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
+                <FileText className="w-4 h-4" />
               </div>
-
-              <div className="text-right font-mono text-xs text-slate-600">
-                <div>Documented: {new Date(civicCase.updatedAt).toLocaleDateString()}</div>
-                <div className="font-bold text-red-600 uppercase mt-0.5">
-                  Severity: {civicCase.severity}
-                </div>
-              </div>
+              <h2 className="text-base font-semibold text-slate-900">
+                Maintenance Work Order
+              </h2>
             </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700">
+              Target SLA: {civicCase.estimatedResponseTarget?.split(' ')[0] || '4 Hours'}
+            </span>
+          </div>
 
-            {/* Spec Table */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-100 p-3.5 rounded-lg text-xs font-mono">
-              <div>
-                <span className="text-slate-500 block">Category</span>
-                <strong className="text-slate-900">{civicCase.category}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Campus Zone</span>
-                <strong className="text-slate-900">{civicCase.zone}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Assigned Unit</span>
-                <strong className="text-slate-900">{civicCase.assignedTeam}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Target Response</span>
-                <strong className="text-slate-900">{civicCase.estimatedResponseTarget}</strong>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div>
+              <span className="text-slate-500 block">Assigned Division:</span>
+              <strong className="text-slate-900 font-medium text-sm">{civicCase.assignedTeam || 'Facilities Dispatch'}</strong>
             </div>
-
-            {/* Consolidated Evidence */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-mono font-bold tracking-wider uppercase text-slate-700 border-b border-slate-300 pb-1">
-                1. Consolidated Incident Evidence ({civicCase.evidence.length} Corroborating Submissions)
-              </h4>
-              <div className="space-y-2">
-                {civicCase.evidence.map((ev, i) => (
-                  <div key={i} className="text-xs leading-relaxed border-l-2 border-slate-400 pl-3">
-                    <strong className="font-mono text-slate-900">
-                      Report {ev.reportId} ({ev.reporterLabel}) — {new Date(ev.timestamp).toLocaleTimeString()}:
-                    </strong>
-                    <p className="text-slate-700 mt-0.5">{ev.description}</p>
-                  </div>
-                ))}
-              </div>
+            <div>
+              <span className="text-slate-500 block">Priority Scoring:</span>
+              <strong className="text-slate-900 font-medium text-sm">{civicCase.priorityScore} / 100</strong>
             </div>
+            <div>
+              <span className="text-slate-500 block">Dispatch SLA (Non-binding):</span>
+              <strong className="text-slate-900 font-medium text-sm">{civicCase.estimatedResponseTarget || 'Standard Tier'}</strong>
+            </div>
+          </div>
 
-            {/* AI Recommendations */}
-            {ai && (
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono font-bold tracking-wider uppercase text-slate-700 border-b border-slate-300 pb-1">
-                  2. AI Safety Assessment (Gemma / Gemini Inspection Engine)
-                </h4>
-                <div className="text-xs space-y-2 text-slate-800">
-                  <p><strong>Accessibility Impact:</strong> {ai.accessibilityImpact}</p>
-                  <p><strong>Immediate Containment:</strong> {ai.recommendedAction}</p>
-                  <div>
-                    <strong>Hazards Flagged:</strong>
-                    <ul className="list-disc list-inside mt-1 space-y-0.5">
-                      {ai.detectedHazards.map((h, i) => (
-                        <li key={i}>{h}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Human Clarifications */}
-            {civicCase.clarificationAnswers.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-mono font-bold tracking-wider uppercase text-slate-700 border-b border-slate-300 pb-1">
-                  3. Recorded On-Site Human Clarifications
-                </h4>
-                {civicCase.clarificationAnswers.map((a, i) => (
-                  <div key={i} className="text-xs bg-slate-50 p-2 rounded border border-slate-200">
-                    <div className="italic text-slate-600">Q: {a.question}</div>
-                    <div className="font-bold text-slate-900 mt-0.5">A: {a.answer} ({a.answeredBy})</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Print Footer */}
-            <div className="pt-4 border-t border-slate-300 flex items-center justify-between text-[11px] font-mono text-slate-500">
-              <span>REPAIR.AI Civic Operations Intelligence</span>
-              <span>Visual SLA Estimate — Non-binding Dispatch Guarantee</span>
+          <div className="flex items-center justify-between pt-1 text-xs text-slate-500">
+            <span>Ready for municipal ticketing &amp; facilities export.</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleCopyMarkdown}
+                className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-medium transition-colors"
+              >
+                Copy Markdown Ticket
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintDossier}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 font-medium transition-colors"
+              >
+                Print Work Order
+              </button>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Tab 4: Visual Repair Verification */}
-      {activeTab === 'verification' && (
-        <div className="p-4 sm:p-6 space-y-6 max-w-5xl">
-          {/* Top Control Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-            <div>
-              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                Visual Repair Verification & Comparison
-              </h3>
-              <p className="text-xs font-mono text-slate-400 mt-0.5">
-                Stage 5: Multimodal Reality Inspection
-              </p>
+        {/* 6. Visual Repair Verification (Before / After Inspection) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Visual Repair Verification
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Compare reported damage against submitted repair evidence
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* After-image upload control */}
-              <label className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-slate-700 cursor-pointer">
-                <Upload className="w-3.5 h-3.5 text-sky-400" />
-                <span>Upload After-Image</span>
+            <div className="flex items-center gap-2">
+              {/* Comparison Mode Toggle */}
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setComparisonMode('slider')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                    comparisonMode === 'slider'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Slider
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setComparisonMode('side-by-side')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                    comparisonMode === 'side-by-side'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Side by Side
+                </button>
+              </div>
+
+              {/* Upload After-Image Action */}
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 cursor-pointer transition-colors">
+                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                <span>Upload After-Photo</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -651,164 +562,101 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={() => setAfterImageUrl(repairedRampSvg)}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700"
-                title="Reset to bundled repaired ramp preset"
-              >
-                Reset Preset
-              </button>
-
-              {/* View mode toggle */}
-              <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs font-mono">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('slider')}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    viewMode === 'slider'
-                      ? 'bg-sky-500 text-slate-950 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Split Slider
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('side-by-side')}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    viewMode === 'side-by-side'
-                      ? 'bg-sky-500 text-slate-950 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Side by Side
-                </button>
-              </div>
-
               {/* Run Verification Button */}
               <button
                 type="button"
                 onClick={handleRunVerification}
                 disabled={isVerifying}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-mono font-bold transition-colors shadow-md shadow-emerald-500/20"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-xs transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5 fill-current" />
-                {isVerifying ? 'Comparing Evidence...' : 'Run Multimodal Verification'}
+                <Sparkles className="w-3.5 h-3.5" />
+                {isVerifying ? 'Comparing...' : 'Verify Repair'}
               </button>
             </div>
           </div>
 
-          {/* Verification Comparison Display */}
-          {viewMode === 'slider' ? (
+          {/* Before / After Comparison Display */}
+          {comparisonMode === 'slider' ? (
             <ImageComparisonSlider
               beforeUrl={beforeImageUrl}
               afterUrl={afterImageUrl}
-              beforeLabel="BEFORE REPAIR (Incident Evidence)"
-              afterLabel="AFTER REPAIR (Contractor Evidence)"
+              beforeLabel="Before (Reported Incident)"
+              afterLabel="After (Contractor Repair)"
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <div className="text-xs font-mono font-bold text-rose-400 uppercase">
-                  Before Repair (Reported Defect)
-                </div>
-                <div className="w-full h-72 rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-                  <img
-                    src={beforeImageUrl}
-                    alt="Before condition"
-                    className="w-full h-full object-cover"
-                  />
+                <span className="text-xs font-semibold text-rose-700 block">
+                  Before Repair (Reported Incident)
+                </span>
+                <div className="w-full aspect-16/10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                  <img src={beforeImageUrl} alt="Before" className="w-full h-full object-cover" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <div className="text-xs font-mono font-bold text-emerald-400 uppercase">
+                <span className="text-xs font-semibold text-emerald-700 block">
                   After Repair (Completed Work)
-                </div>
-                <div className="w-full h-72 rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-                  <img
-                    src={afterImageUrl}
-                    alt="After condition"
-                    className="w-full h-full object-cover"
-                  />
+                </span>
+                <div className="w-full aspect-16/10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                  <img src={afterImageUrl} alt="After" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
           )}
 
-          {/* AI Verification Results Card */}
+          {/* Verification Results Box */}
           {civicCase.verification ? (
-            <div className="bg-slate-900/60 border border-emerald-500/40 rounded-xl p-5 space-y-4">
+            <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                    <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span className="text-sm font-semibold text-emerald-950">
+                    Visual Verification Status: Visually Verified
                   </span>
-                  <div>
-                    <div className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                      Verification Status: <span className="text-emerald-400">{civicCase.verification.verificationStatus}</span>
-                    </div>
-                    <div className="text-[11px] font-mono text-slate-400">
-                      Visual Comparison Confidence: {(civicCase.verification.confidenceScore * 100).toFixed(0)}% • {civicCase.verification.isSimulated ? 'Simulated Inspection' : 'Live Gemini Inspection'}
-                    </div>
-                  </div>
                 </div>
-
-                <span className="px-2.5 py-1 rounded text-xs font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                  VISUALLY VERIFIED
+                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  Confidence: {Math.round(civicCase.verification.confidenceScore * 100)}%
                 </span>
               </div>
 
-              <div className="space-y-2">
-                <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block">
-                  Observed Visual Differences
-                </span>
-                <div className="space-y-1">
-                  {civicCase.verification.visualChangesObserved.map((change, i) => (
-                    <div key={i} className="text-xs text-slate-200 flex items-start gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{change}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-1 text-xs text-emerald-900">
+                <strong className="block text-slate-800">Observed Physical Differences:</strong>
+                {civicCase.verification.visualChangesObserved.map((change, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>{change}</span>
+                  </div>
+                ))}
               </div>
 
               {civicCase.verification.remainingConcerns.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider block">
-                    Remaining Operational Cautions
-                  </span>
-                  <div className="space-y-1">
-                    {civicCase.verification.remainingConcerns.map((concern, i) => (
-                      <div key={i} className="text-xs text-amber-200/90 flex items-start gap-2 bg-amber-950/20 p-2 rounded border border-amber-500/20">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                        <span>{concern}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="pt-2 border-t border-emerald-200 text-xs text-amber-900">
+                  <strong className="block text-amber-950 mb-0.5">Remaining Caution:</strong>
+                  {civicCase.verification.remainingConcerns.map((concern, i) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <span>⚠️</span>
+                      <span>{concern}</span>
+                    </div>
+                  ))}
                 </div>
               )}
-
-              {/* STATUTORY DISCLAIMER */}
-              <div className="p-3.5 rounded-lg bg-rose-950/20 border border-rose-500/30 text-rose-300 text-xs leading-relaxed">
-                <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0 mb-1" />
-                {civicCase.verification.complianceDisclaimer}
-              </div>
             </div>
           ) : (
-            <div className="p-6 rounded-xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
-              <ShieldCheck className="w-8 h-8 mx-auto text-slate-600" />
-              <div className="text-xs font-mono text-slate-300 font-bold">
-                No Visual Verification Recorded Yet
-              </div>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Click "Run Multimodal Verification" to compare the reported incident against the contractor repair submission.
-              </p>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+              No visual verification recorded yet. Upload an after-repair image and click "Verify Repair" to run photographic difference inspection.
             </div>
           )}
+
+          {/* Mandatory Statutory Disclaimer */}
+          <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-start gap-2.5 leading-relaxed">
+            <AlertOctagon className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+            <div>
+              <strong>Compliance Notice:</strong> Visual verification confirms automated 2D photographic changes only and does not certify statutory engineering compliance, structural load safety, or municipal building code approval. An authorized safety engineer must perform on-site certification prior to unrestricted reopening.
+            </div>
+          </div>
         </div>
-      )}
-    </main>
+      </div>
+    </div>
   );
 };

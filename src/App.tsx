@@ -5,15 +5,20 @@ import { JudgeRubricModal } from './components/JudgeRubricModal';
 import { IncidentReportModal } from './features/cases/IncidentReportModal';
 import { CaseFeed } from './features/cases/CaseFeed';
 import { CaseDetailWorkflow } from './features/cases/CaseDetailWorkflow';
-import { TelemetryInspector } from './features/cases/TelemetryInspector';
 import { ReplayDirector } from './features/replay/ReplayDirector';
+
+import { 
+  ClipboardList, 
+  Plus, 
+  Play, 
+  HelpCircle 
+} from 'lucide-react';
 
 import { 
   loadCases, 
   saveCases, 
   saveOrUpdateCase, 
   mergeEvidenceIntoCase, 
-  resetToDemoData, 
   getSessionApiKey, 
   setSessionApiKey, 
   getSelectedModel, 
@@ -39,6 +44,9 @@ export function App() {
     return loaded.length > 0 ? loaded[0].id : null;
   });
 
+  // Mobile view state: 'list' | 'detail'
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
+
   // Modals state
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
@@ -48,16 +56,13 @@ export function App() {
   const [isReplayActive, setIsReplayActive] = useState<boolean>(false);
   const [replayStep, setReplayStep] = useState<number>(1);
 
-  // Mobile navigation tabs
-  const [mobileTab, setMobileTab] = useState<'feed' | 'workflow' | 'telemetry'>('workflow');
-
   // AI & telemetry config
   const [apiKey, setApiKey] = useState<string>(() => getSessionApiKey());
   const [selectedModelName, setSelectedModelName] = useState<string>(() => getSelectedModel());
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => getDemoMode());
-  const [aiCallsCount, setAiCallsCount] = useState<number>(3); // Initial seeded inferences
+  const [aiCallsCount, setAiCallsCount] = useState<number>(3); // Initial seeded count
 
-  // Current selected case
+  // Active case
   const activeCase = cases.find(c => c.id === selectedCaseId) || cases[0];
 
   // Save API key
@@ -83,6 +88,7 @@ export function App() {
     const updated = saveOrUpdateCase(newCase);
     setCases(updated);
     setSelectedCaseId(newCase.id);
+    setMobileView('detail');
     setAiCallsCount(prev => prev + 1);
   };
 
@@ -97,6 +103,7 @@ export function App() {
       const updatedList = loadCases();
       setCases(updatedList);
       setSelectedCaseId(targetCaseId);
+      setMobileView('detail');
     }
   };
 
@@ -109,27 +116,16 @@ export function App() {
     }
   };
 
-  // Reset to default demo state
-  const handleResetDemo = () => {
-    const defaultCases = resetToDemoData();
-    setCases(defaultCases);
-    setSelectedCaseId(defaultCases[0]?.id || null);
-    setIsReplayActive(false);
-    setReplayStep(1);
-  };
-
   // COMMUNITY PROBLEM REPLAY STEP CONTROLLER
   const handleReplayStepChange = (step: number) => {
     setReplayStep(step);
 
-    // Target demonstration case ID: CIV-8492-A
     const baseTarget = cases.find(c => c.id === 'CIV-8492-A') || cases[0];
     if (!baseTarget) return;
 
     let modifiedCase: CivicCase = { ...baseTarget };
 
     if (step === 1) {
-      // Step 1: Single original report by Student Reporter 1
       modifiedCase = {
         ...modifiedCase,
         status: 'REPORTED',
@@ -151,7 +147,6 @@ export function App() {
         verification: undefined,
       };
     } else if (step === 2) {
-      // Step 2: Student Reporter 2 submits second photo showing exposed rebar; duplicate merged
       const evidence2: EvidenceItem = {
         id: 'EV-8492-2',
         reportId: 'REP-1002-02',
@@ -182,7 +177,6 @@ export function App() {
         verification: undefined,
       };
     } else if (step === 3) {
-      // Step 3: Student Reporter 3 submits photo under rain; 3 reports converged
       const evidence2: EvidenceItem = {
         id: 'EV-8492-2',
         reportId: 'REP-1002-02',
@@ -234,7 +228,6 @@ export function App() {
         verification: undefined,
       };
     } else if (step === 4) {
-      // Step 4: Repair evidence uploaded by Facilities Contractor
       modifiedCase = {
         ...modifiedCase,
         status: 'REPAIR_IN_PROGRESS',
@@ -255,7 +248,6 @@ export function App() {
         },
       };
     } else if (step === 5) {
-      // Step 5: Visual verification completed & verified
       modifiedCase = {
         ...modifiedCase,
         status: 'VISUALLY_VERIFIED',
@@ -282,11 +274,11 @@ export function App() {
       };
     }
 
-    // Save and update cases in state
     const updatedList = cases.map(c => (c.id === modifiedCase.id ? modifiedCase : c));
     setCases(updatedList);
     saveCases(updatedList);
     setSelectedCaseId(modifiedCase.id);
+    setMobileView('detail');
   };
 
   const startReplay = () => {
@@ -301,21 +293,18 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-[#F8FAFC] flex flex-col antialiased">
-      {/* 1. Command Bar */}
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
+      {/* 1. Simplified Main Navigation */}
       <CommandBar
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenModelModal={() => setIsModelModalOpen(true)}
         onOpenRubricModal={() => setIsRubricModalOpen(true)}
         onStartReplay={startReplay}
-        onResetDemo={handleResetDemo}
         isReplayActive={isReplayActive}
-        selectedModel={selectedModelName}
-        isDemoMode={isDemoMode}
-        hasApiKey={Boolean(apiKey)}
+        totalReportsCount={cases.length}
       />
 
-      {/* 2. Community Problem Replay Director (when active) */}
+      {/* 2. Guided Community Problem Replay (when active) */}
       {isReplayActive && (
         <ReplayDirector
           currentStep={replayStep}
@@ -324,71 +313,88 @@ export function App() {
         />
       )}
 
-      {/* Mobile Tab Switcher */}
-      <div className="lg:hidden flex items-center justify-around bg-slate-900 border-b border-slate-800 text-xs font-mono py-2">
-        <button
-          type="button"
-          onClick={() => setMobileTab('feed')}
-          className={`px-3 py-1 rounded ${mobileTab === 'feed' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400'}`}
+      {/* 3. Main Workspace: Clean 2-Column Layout on Desktop, Fluid on Mobile */}
+      <div className="flex-1 flex overflow-hidden max-w-7xl mx-auto w-full">
+        {/* Left Column: Reports List */}
+        <div
+          className={`w-full lg:w-[380px] xl:w-[420px] shrink-0 h-full border-r border-slate-200 ${
+            mobileView === 'list' ? 'flex' : 'hidden lg:flex'
+          }`}
         >
-          Cases ({cases.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab('workflow')}
-          className={`px-3 py-1 rounded ${mobileTab === 'workflow' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400'}`}
-        >
-          Workflow & Dossier
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab('telemetry')}
-          className={`px-3 py-1 rounded ${mobileTab === 'telemetry' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400'}`}
-        >
-          Telemetry
-        </button>
-      </div>
-
-      {/* 3. Three-Panel Workspace */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel: Case Feed */}
-        <div className={`w-full lg:w-80 xl:w-96 flex shrink-0 ${mobileTab === 'feed' ? 'flex' : 'hidden lg:flex'}`}>
           <CaseFeed
             cases={cases}
             selectedCaseId={selectedCaseId}
             onSelectCase={id => {
               setSelectedCaseId(id);
-              setMobileTab('workflow');
+              setMobileView('detail');
             }}
             onOpenReportModal={() => setIsReportModalOpen(true)}
           />
         </div>
 
-        {/* Center Panel: Case Workflow & Epistemic Analysis */}
-        <div className={`flex-1 flex overflow-hidden ${mobileTab === 'workflow' ? 'flex' : 'hidden lg:flex'}`}>
+        {/* Right Column: Selected Report Detail */}
+        <div
+          className={`flex-1 h-full overflow-hidden ${
+            mobileView === 'detail' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
           {activeCase ? (
             <CaseDetailWorkflow
               civicCase={activeCase}
               onUpdateCase={handleUpdateCase}
               apiConfig={apiConfig}
+              onBackToList={() => setMobileView('list')}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500 font-mono text-xs">
-              No civic case selected
+            <div className="flex-1 flex items-center justify-center p-8 text-center text-slate-500">
+              <p className="text-sm font-medium">Select a report from the list to view details</p>
             </div>
           )}
         </div>
-
-        {/* Right Panel: Telemetry & Evidence Inspector */}
-        <div className={`w-full lg:w-72 xl:w-80 shrink-0 ${mobileTab === 'telemetry' ? 'flex' : 'hidden lg:flex'}`}>
-          {activeCase && (
-            <TelemetryInspector
-              civicCase={activeCase}
-              allCases={cases}
-            />
-          )}
-        </div>
       </div>
+
+      {/* 4. Mobile Bottom Navigation Bar */}
+      <nav className="lg:hidden sticky bottom-0 z-30 w-full bg-white border-t border-slate-200 py-2 px-6 flex items-center justify-around shadow-sm">
+        <button
+          type="button"
+          onClick={() => setMobileView('list')}
+          className={`flex flex-col items-center gap-1 text-xs font-medium ${
+            mobileView === 'list' ? 'text-blue-600' : 'text-slate-500'
+          }`}
+        >
+          <ClipboardList className="w-5 h-5" />
+          <span>Reports</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsReportModalOpen(true)}
+          className="flex flex-col items-center justify-center -mt-5 w-12 h-12 rounded-full bg-blue-600 text-white shadow-md active:scale-95 transition-transform"
+          title="Report New Incident"
+        >
+          <Plus className="w-6 h-6 stroke-[2.5]" />
+        </button>
+
+        <button
+          type="button"
+          onClick={startReplay}
+          className={`flex flex-col items-center gap-1 text-xs font-medium ${
+            isReplayActive ? 'text-amber-600' : 'text-slate-500'
+          }`}
+        >
+          <Play className="w-5 h-5" />
+          <span>Replay</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsRubricModalOpen(true)}
+          className="flex flex-col items-center gap-1 text-xs font-medium text-slate-500"
+        >
+          <HelpCircle className="w-5 h-5" />
+          <span>About</span>
+        </button>
+      </nav>
 
       {/* Modals */}
       <IncidentReportModal
@@ -422,4 +428,5 @@ export function App() {
     </div>
   );
 }
+
 export default App;

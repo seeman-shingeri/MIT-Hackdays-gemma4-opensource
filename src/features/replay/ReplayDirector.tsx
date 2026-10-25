@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { 
   Play, 
   Pause, 
-  SkipBack, 
-  SkipForward, 
+  ChevronLeft, 
+  ChevronRight, 
   RotateCcw, 
   X, 
-  Sparkles, 
   CheckCircle2, 
   Clock, 
-  User 
+  User
 } from 'lucide-react';
 import { REPLAY_STEPS } from './replaySteps';
 
@@ -30,9 +29,7 @@ export const ReplayDirector: React.FC<ReplayDirectorProps> = ({
   const step = REPLAY_STEPS.find(s => s.stepNumber === currentStep) || REPLAY_STEPS[0];
 
   useEffect(() => {
-    if (!isPlaying) {
-      return;
-    }
+    if (!isPlaying) return;
 
     const stepDuration = 8000; // 8 seconds per step
     const interval = 100;
@@ -79,38 +76,38 @@ export const ReplayDirector: React.FC<ReplayDirectorProps> = ({
   };
 
   return (
-    <div className="w-full bg-[#111827] border-b border-amber-500/40 shadow-2xl relative overflow-hidden">
+    <div className="w-full bg-amber-50/60 border-b border-amber-200 shadow-xs relative">
       {/* Top Progress Bar when Playing */}
       {isPlaying && (
         <div
-          className="absolute top-0 left-0 h-1 bg-gradient-to-r from-amber-500 to-sky-400 transition-all duration-100 ease-linear"
+          className="absolute top-0 left-0 h-1 bg-amber-500 transition-all duration-100 ease-linear"
           style={{ width: `${progress}%` }}
         />
       )}
 
-      <div className="max-w-7xl mx-auto px-4 py-3">
-        {/* Top Control Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5 mb-2.5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 space-y-3">
+        {/* Top Header: Scenario Title & Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              COMMUNITY PROBLEM REPLAY
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-200 text-amber-900 border border-amber-300">
+              Guided Demonstration Flow
             </span>
-            <span className="text-xs font-mono text-slate-400 hidden sm:inline">
-              5-Minute Guided Demonstration • Case <strong className="text-slate-200">CIV-8492-A</strong>
+            <span className="text-xs text-slate-600 hidden sm:inline font-medium">
+              Case CIV-8492-A: Concrete Ramp Degradation &amp; Verification
             </span>
           </div>
 
-          {/* Playback Controls */}
-          <div className="flex items-center gap-2">
+          {/* Stepper Controls */}
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={handlePrev}
               disabled={currentStep <= 1}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 disabled:opacity-30 text-slate-300 text-xs font-mono transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
               title="Previous Step"
             >
-              <SkipBack className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Prev</span>
             </button>
 
             <button
@@ -119,7 +116,7 @@ export const ReplayDirector: React.FC<ReplayDirectorProps> = ({
                 setProgress(0);
                 setIsPlaying(!isPlaying);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-mono font-bold transition-colors shadow-md shadow-amber-500/20"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-xs"
             >
               {isPlaying ? (
                 <>
@@ -138,36 +135,37 @@ export const ReplayDirector: React.FC<ReplayDirectorProps> = ({
               type="button"
               onClick={handleNext}
               disabled={currentStep >= 5}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 disabled:opacity-30 text-slate-300 text-xs font-mono transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
               title="Next Step"
             >
-              <SkipForward className="w-4 h-4" />
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
 
             <button
               type="button"
               onClick={handleRestart}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono transition-colors"
-              title="Restart Replay"
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              title="Restart Demonstration"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
 
-            <div className="h-5 w-px bg-slate-800 mx-1" />
+            <div className="h-4 w-px bg-slate-200 mx-1" />
 
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors"
-              title="Exit Replay"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+              title="Exit Demonstration"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Replay Step Timeline Chips */}
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 mb-3">
+        {/* Timeline Stepper Chips (Usable on mobile without overflow) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
           {REPLAY_STEPS.map(s => {
             const isActive = s.stepNumber === currentStep;
             const isCompleted = s.stepNumber < currentStep;
@@ -181,23 +179,23 @@ export const ReplayDirector: React.FC<ReplayDirectorProps> = ({
                 }}
                 className={`p-2 rounded-lg text-left border transition-all ${
                   isActive
-                    ? 'border-amber-400 bg-amber-950/30 ring-1 ring-amber-400/50'
+                    ? 'border-amber-500 bg-white shadow-xs ring-1 ring-amber-500/30'
                     : isCompleted
-                    ? 'border-slate-700 bg-slate-900/80 hover:border-slate-600'
-                    : 'border-slate-800 bg-slate-950/40 opacity-60 hover:opacity-90'
+                    ? 'border-slate-200 bg-white/70 hover:bg-white'
+                    : 'border-slate-200/60 bg-white/40 opacity-70 hover:opacity-100'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold text-slate-400">
-                    STEP {s.stepNumber}
+                <div className="flex items-center justify-between text-xs">
+                  <span className={`font-bold ${isActive ? 'text-amber-800' : 'text-slate-600'}`}>
+                    Step {s.stepNumber}
                   </span>
                   {isCompleted ? (
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                   ) : (
-                    <span className="text-[10px] font-mono text-amber-400">{s.timeLabel}</span>
+                    <span className="text-[11px] text-slate-400 font-mono">{s.timeLabel}</span>
                   )}
                 </div>
-                <div className="text-xs font-semibold text-slate-200 truncate mt-0.5">
+                <div className="text-xs text-slate-700 truncate mt-0.5 font-medium">
                   {s.title.split('&')[0]}
                 </div>
               </button>
@@ -205,37 +203,36 @@ export const ReplayDirector: React.FC<ReplayDirectorProps> = ({
           })}
         </div>
 
-        {/* Current Step Detailed Narrative Box */}
-        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-          <div className="space-y-1 max-w-3xl">
+        {/* Narrative & Automated Action Banner */}
+        <div className="bg-white rounded-xl border border-amber-200 p-3 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+          <div className="space-y-1 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-mono font-bold text-amber-400">
-                {step.badge}
+              <span className="font-semibold text-amber-900 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
+                {step.badge.split('•')[1] || step.badge}
               </span>
-              <span className="text-slate-600">•</span>
-              <span className="text-xs font-mono text-slate-300 flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400" />
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-600 flex items-center gap-1 font-medium">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
                 {step.timeLabel}
               </span>
-              <span className="text-slate-600">•</span>
-              <span className="text-xs font-mono text-sky-300 flex items-center gap-1">
-                <User className="w-3 h-3 text-sky-400" />
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-600 flex items-center gap-1 font-medium">
+                <User className="w-3.5 h-3.5 text-slate-400" />
                 {step.reporter}
               </span>
             </div>
-            <p className="text-xs text-slate-200 leading-relaxed">
+            <p className="text-slate-800 text-xs leading-relaxed font-normal">
               {step.summary}
             </p>
           </div>
 
-          {/* Technical highlights bullet pill list */}
-          <div className="w-full md:w-auto md:min-w-[340px] space-y-1 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80">
-            <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
-              Autonomous Intelligence Execution:
-            </div>
-            {step.technicalHighlights.map((th, idx) => (
-              <div key={idx} className="text-[11px] text-slate-300 font-mono flex items-start gap-1.5 leading-tight">
-                <span className="text-sky-400 shrink-0">▸</span>
+          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 w-full md:w-auto md:min-w-[320px] space-y-1">
+            <span className="font-semibold text-slate-700 block text-[11px]">
+              Automated Inspection Pipeline:
+            </span>
+            {step.technicalHighlights.map((th, i) => (
+              <div key={i} className="text-[11px] text-slate-600 flex items-start gap-1.5 leading-snug">
+                <span className="text-blue-600 font-bold shrink-0">•</span>
                 <span>{th}</span>
               </div>
             ))}

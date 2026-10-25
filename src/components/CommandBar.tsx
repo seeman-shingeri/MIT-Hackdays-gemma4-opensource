@@ -1,12 +1,11 @@
 import React from 'react';
 import { 
-  Wrench, 
+  ShieldCheck, 
   Play, 
-  PlusCircle, 
+  Plus, 
   Settings, 
-  Award, 
-  RotateCcw,
-  Sparkles
+  HelpCircle, 
+  ClipboardList
 } from 'lucide-react';
 
 interface CommandBarProps {
@@ -14,11 +13,8 @@ interface CommandBarProps {
   onOpenModelModal: () => void;
   onOpenRubricModal: () => void;
   onStartReplay: () => void;
-  onResetDemo: () => void;
   isReplayActive: boolean;
-  selectedModel: string;
-  isDemoMode: boolean;
-  hasApiKey: boolean;
+  totalReportsCount: number;
 }
 
 export const CommandBar: React.FC<CommandBarProps> = ({
@@ -26,116 +22,88 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onOpenModelModal,
   onOpenRubricModal,
   onStartReplay,
-  onResetDemo,
   isReplayActive,
-  selectedModel,
-  isDemoMode,
-  hasApiKey,
+  totalReportsCount,
 }) => {
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#090D16]/95 border-b border-slate-800 backdrop-blur-md px-4 lg:px-6 py-2.5">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-        {/* Brand & Subtitle */}
+    <header className="sticky top-0 z-40 w-full bg-white border-b border-slate-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        {/* Brand & Descriptor */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-sky-500/20">
-            <Wrench className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
+            <ShieldCheck className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-base font-black tracking-tight text-slate-100">
-                REPAIR<span className="text-sky-400">.AI</span>
+              <span className="font-semibold text-slate-900 text-base tracking-tight">
+                REPAIR<span className="text-blue-600">.AI</span>
               </span>
-              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                GEMMA 4
+              <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                Civic Field Inspector
               </span>
             </div>
-            <p className="text-[11px] font-mono text-slate-400 leading-tight">
-              Civic Infrastructure Intelligence
+            <p className="text-xs text-slate-500 hidden sm:block">
+              Community Infrastructure &amp; Accessibility Resolution
             </p>
           </div>
         </div>
 
-        {/* Center: AI Connection Status Pill (Clickable) */}
-        <div className="flex items-center gap-2">
+        {/* Center / Navigation Links (Desktop) */}
+        <nav className="hidden md:flex items-center gap-1 sm:gap-2">
           <button
             type="button"
-            onClick={onOpenModelModal}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700/80 hover:border-slate-600 text-xs font-mono transition-all group"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-900 bg-slate-100 border border-slate-200"
           >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isDemoMode
-                  ? 'bg-amber-400 animate-pulse'
-                  : hasApiKey
-                  ? 'bg-emerald-400'
-                  : 'bg-rose-400'
-              }`}
-            />
-            <span className="text-slate-300 group-hover:text-slate-100">
-              {isDemoMode ? (
-                <>
-                  <span className="text-amber-400 font-bold">DEMO SIMULATOR</span>
-                  <span className="text-slate-500 mx-1">•</span>
-                  <span className="text-slate-400">{selectedModel}</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-emerald-400 font-bold">LIVE API</span>
-                  <span className="text-slate-500 mx-1">•</span>
-                  <span className="text-slate-300">{selectedModel}</span>
-                </>
-              )}
+            <ClipboardList className="w-4 h-4 text-blue-600" />
+            <span>Reports</span>
+            <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-xs font-semibold bg-blue-600 text-white">
+              {totalReportsCount}
             </span>
-            <Settings className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 ml-0.5" />
           </button>
-        </div>
 
-        {/* Right Action Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Prominent Community Problem Replay Button */}
           <button
             type="button"
             onClick={onStartReplay}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all shadow-md ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isReplayActive
-                ? 'bg-amber-500 text-slate-950 shadow-amber-500/20 ring-2 ring-amber-400/50'
-                : 'bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-300 border border-amber-500/40 hover:border-amber-400 shadow-amber-500/10'
+                ? 'bg-amber-50 text-amber-900 border border-amber-300 font-semibold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            <Play className={`w-3.5 h-3.5 fill-current ${isReplayActive ? 'animate-pulse' : ''}`} />
+            <Play className={`w-4 h-4 ${isReplayActive ? 'text-amber-600 fill-amber-600' : 'text-slate-500'}`} />
             <span>Community Replay</span>
-            <Sparkles className="w-3 h-3 text-amber-400" />
           </button>
 
-          {/* New Incident Report Button */}
-          <button
-            type="button"
-            onClick={onOpenReportModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-mono font-bold transition-all shadow-md shadow-sky-500/20"
-          >
-            <PlusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden sm:inline">New Report</span>
-          </button>
-
-          {/* Judge Rubric Modal Button */}
           <button
             type="button"
             onClick={onOpenRubricModal}
-            title="Open Judge Rubric & Architecture"
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
           >
-            <Award className="w-4 h-4 text-amber-400" />
-            <span className="hidden md:inline">Rubric</span>
+            <HelpCircle className="w-4 h-4 text-slate-500" />
+            <span>Project Rubric</span>
           </button>
+        </nav>
 
-          {/* Reset Demo State Button */}
+        {/* Right Primary Actions */}
+        <div className="flex items-center gap-2.5">
+          {/* Settings Trigger (API Key & Engine) */}
           <button
             type="button"
-            onClick={onResetDemo}
-            title="Reset to default demonstration state"
-            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors"
+            onClick={onOpenModelModal}
+            title="Configure AI Engine & API"
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
           >
-            <RotateCcw className="w-4 h-4" />
+            <Settings className="w-4 h-4" />
+          </button>
+
+          {/* Prominent New Report Action Button */}
+          <button
+            type="button"
+            onClick={onOpenReportModal}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium shadow-sm transition-all active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New Report</span>
           </button>
         </div>
       </div>

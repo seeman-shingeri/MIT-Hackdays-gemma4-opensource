@@ -1,13 +1,14 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { 
   X, 
-  Upload, 
-  Image as ImageIcon, 
   Sparkles, 
-  AlertTriangle, 
   GitMerge, 
   Trash2, 
-  Layers
+  Camera,
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  ShieldCheck
 } from 'lucide-react';
 import type { CampusZone, CivicCase, EvidenceItem, IssueCategory } from '../../types/case';
 import { EVIDENCE_PRESETS, type EvidencePreset } from '../../data/presetAssets';
@@ -27,10 +28,10 @@ const ZONES: CampusZone[] = [
 
 const CATEGORIES: IssueCategory[] = [
   'Accessibility',
+  'Pedestrian Safety',
   'Electrical',
   'Plumbing',
   'Structural',
-  'Pedestrian Safety',
 ];
 
 interface IncidentReportModalProps {
@@ -50,6 +51,9 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
   onEvidenceMerged,
   apiConfig,
 }) => {
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Form State
   const [selectedPresetId, setSelectedPresetId] = useState<string>('preset-ramp-broken');
   const [imageUrl, setImageUrl] = useState<string>(EVIDENCE_PRESETS[0].imageUrl);
   const [title, setTitle] = useState<string>(EVIDENCE_PRESETS[0].title);
@@ -63,7 +67,7 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Apply preset
+  // Apply a preset
   const handleSelectPreset = (preset: EvidencePreset) => {
     setSelectedPresetId(preset.id);
     setImageUrl(preset.imageUrl);
@@ -82,14 +86,12 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
-      setUploadError('Invalid file format. Please upload a JPEG, PNG, WebP, or SVG image.');
+      setUploadError('Invalid file format. Please upload a JPEG, PNG, WebP, or SVG photograph.');
       return;
     }
 
-    // Validate size (max 8MB)
     if (file.size > 8 * 1024 * 1024) {
       setUploadError('File size exceeds 8MB limit. Please provide a compressed image.');
       return;
@@ -108,7 +110,7 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Live duplicate detection as user edits zone/category/description
+  // Live duplicate detection
   const duplicateWarning: DuplicateMatchResult | null = useMemo(() => {
     if (!description.trim()) {
       return null;
@@ -133,7 +135,6 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // 1. Execute AI analysis (Live Gemini API or Simulated Demo)
       const aiAnalysis = await analyzeIncidentEvidence(
         {
           imageUrl,
@@ -146,7 +147,6 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
         apiConfig
       );
 
-      // 2. Generate unique stable case ID
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const caseId = `CIV-${new Date().getFullYear()}-${randomSuffix}`;
       const reportId = `REP-${Date.now().toString().slice(-6)}`;
@@ -219,161 +219,165 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-              <Upload className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                Report Campus Infrastructure Hazard
-              </h2>
-              <p className="text-xs text-slate-400 font-mono">
-                Stage 1: Reality Capture & Evidence Ingestion
-              </p>
-            </div>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Report Infrastructure Problem
+            </h2>
+            <p className="text-xs text-slate-500">
+              Step {currentStep} of 4: {
+                currentStep === 1 ? 'Add Evidence Photo' :
+                currentStep === 2 ? 'Describe Location & Details' :
+                currentStep === 3 ? 'Review AI Observations' :
+                'Confirm & Submit'
+              }
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <div className="p-6 space-y-5 overflow-y-auto">
-          {/* Preset Selector Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-sky-400" />
-                Select Built-in Evidence Preset (Bundled Local SVGs)
-              </label>
-              <span className="text-[11px] font-mono text-slate-500">
-                100% Offline Reliable
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {EVIDENCE_PRESETS.map(preset => {
-                const isSelected = selectedPresetId === preset.id;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => handleSelectPreset(preset)}
-                    className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? 'border-sky-500 bg-sky-950/30 ring-1 ring-sky-500/50'
-                        : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="w-full h-16 rounded-lg overflow-hidden bg-slate-950 mb-2 border border-slate-800">
-                      <img
-                        src={preset.imageUrl}
-                        alt={preset.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-200 line-clamp-1">
-                        {preset.title}
-                      </div>
-                      <div className="text-[10px] font-mono text-sky-400 mt-0.5">
-                        {preset.category}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+        {/* Stepper Indicator */}
+        <div className="grid grid-cols-4 border-b border-slate-100 bg-slate-50 text-xs text-center font-medium">
+          <div className={`py-2 border-b-2 ${currentStep >= 1 ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>
+            1. Evidence
           </div>
+          <div className={`py-2 border-b-2 ${currentStep >= 2 ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>
+            2. Details
+          </div>
+          <div className={`py-2 border-b-2 ${currentStep >= 3 ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>
+            3. Review
+          </div>
+          <div className={`py-2 border-b-2 ${currentStep >= 4 ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>
+            4. Submit
+          </div>
+        </div>
 
-          {/* Image Upload & Preview Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Image Preview Box */}
-            <div className="relative w-full h-52 rounded-xl border border-slate-700 bg-slate-950 overflow-hidden flex items-center justify-center">
-              {imageUrl ? (
-                <>
-                  <img
-                    src={imageUrl}
-                    alt="Evidence Preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-2 right-2 flex gap-1.5">
-                    <button
-                      type="button"
+        {/* Modal Body */}
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          {/* STEP 1: ADD EVIDENCE */}
+          {currentStep === 1 && (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              {/* Photo Preview Box */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  Incident Photograph
+                </label>
+
+                <div className="relative w-full aspect-16/10 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex items-center justify-center">
+                  {imageUrl ? (
+                    <>
+                      <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-3 py-1.5 rounded-lg bg-white/95 text-slate-800 text-xs font-medium border border-slate-200 shadow-sm hover:bg-white"
+                        >
+                          Change Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImageUrl('')}
+                          className="p-1.5 rounded-lg bg-white/95 text-rose-600 text-xs font-medium border border-slate-200 shadow-sm hover:bg-rose-50"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-200 text-xs font-mono border border-slate-700 backdrop-blur-sm"
-                      title="Replace image"
+                      className="p-6 text-center cursor-pointer hover:bg-slate-100/60 w-full h-full flex flex-col items-center justify-center"
                     >
-                      Change
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImageUrl('')}
-                      className="p-1.5 rounded-lg bg-rose-950/90 hover:bg-rose-900 text-rose-300 text-xs font-mono border border-rose-700 backdrop-blur-sm"
-                      title="Remove image"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-slate-300 text-[10px] font-mono backdrop-blur-sm">
-                    {selectedPresetId === 'custom-upload' ? 'User Upload' : 'Bundled SVG Asset'}
-                  </div>
-                </>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:bg-slate-900/40 w-full h-full"
-                >
-                  <ImageIcon className="w-10 h-10 text-slate-600 mb-2" />
-                  <span className="text-xs font-mono text-slate-400">
-                    Click to upload photo evidence (JPG, PNG, SVG)
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-600 mt-1">
-                    Max size: 8MB
-                  </span>
+                      <Camera className="w-8 h-8 text-slate-400 mb-2" />
+                      <span className="text-sm font-medium text-slate-700">
+                        Upload a photo or capture with camera
+                      </span>
+                      <span className="text-xs text-slate-400 mt-1">
+                        JPEG, PNG, WebP or SVG up to 8MB
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+
+                {uploadError && (
+                  <p className="text-xs text-rose-600 font-medium">{uploadError}</p>
+                )}
+              </div>
+
+              {/* Sample Presets */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <span className="text-xs font-semibold text-slate-600 block">
+                  Or select a standard inspection sample:
+                </span>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {EVIDENCE_PRESETS.map(preset => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className={`p-2 rounded-lg border text-left text-xs transition-all flex flex-col justify-between ${
+                        selectedPresetId === preset.id
+                          ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="w-full aspect-16/10 rounded overflow-hidden bg-slate-100 mb-1.5">
+                        <img src={preset.imageUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="font-medium text-slate-900 truncate">{preset.title}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{preset.category}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+          )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-
-            {/* Title & Category & Zone */}
-            <div className="space-y-3">
+          {/* STEP 2: DESCRIBE THE PROBLEM */}
+          {currentStep === 2 && (
+            <div className="space-y-4 animate-in fade-in duration-150">
               <div>
-                <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                  Issue Title
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Incident Title
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. Broken wheelchair ramp slab"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-sky-500"
+                  placeholder="e.g. Broken wheelchair ramp edge"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                    Category
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Hazard Category
                   </label>
                   <select
                     value={category}
                     onChange={e => setCategory(e.target.value as IssueCategory)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                   >
                     {CATEGORIES.map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -382,13 +386,13 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
                     Campus Zone
                   </label>
                   <select
                     value={zone}
                     onChange={e => setZone(e.target.value as CampusZone)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                   >
                     {ZONES.map(z => (
                       <option key={z} value={z}>{z}</option>
@@ -398,121 +402,179 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                  Landmark / Proximity Details (Optional)
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Specific Landmark / Proximity
                 </label>
                 <input
                   type="text"
                   value={landmark}
                   onChange={e => setLandmark(e.target.value)}
-                  placeholder="e.g. West entrance adjacent to bicycle rack"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-sky-500"
+                  placeholder="e.g. West entrance ramp facing Library Quad"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Detailed Description &amp; Damage Observation
+                </label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Describe what is damaged, any trip/tip risk, exposed wiring, water ingress, or accessibility barriers..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Reporter Identifier (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={reporterLabel}
+                  onChange={e => setReporterLabel(e.target.value)}
+                  placeholder="Student Reporter 1 / Facilities Monitor"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                 />
               </div>
             </div>
-          </div>
+          )}
 
-          {uploadError && (
-            <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs font-mono flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{uploadError}</span>
+          {/* STEP 3: REVIEW AI FINDINGS & DUPLICATE CHECK */}
+          {currentStep === 3 && (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  Preliminary AI Inspection Assessment
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-2">
+                  <p>
+                    <strong>Observed Visual Damage:</strong> Severe surface degradation consistent with reported {category.toLowerCase()} hazard.
+                  </p>
+                  <p>
+                    <strong>Needs Verification:</strong> Physical structural stability, subsurface voiding, and handrail anchorage require human on-site inspection.
+                  </p>
+                  <p>
+                    <strong>Recommended Next Action:</strong> Dispatch maintenance crew to install temporary warning signage and deploy containment measures.
+                  </p>
+                </div>
+              </div>
+
+              {/* Duplicate Detection Alert if >= 70% */}
+              {duplicateWarning && (
+                <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <GitMerge className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-xs font-bold text-purple-950 uppercase tracking-wide block">
+                          Similar Existing Incident Found ({duplicateWarning.totalScore}% Match)
+                        </span>
+                        <p className="text-xs text-purple-900 mt-1 font-medium">
+                          Case {duplicateWarning.targetCaseId}: "{duplicateWarning.targetCaseTitle}"
+                        </p>
+                        <p className="text-[11px] text-purple-700 mt-0.5">
+                          Matching: {duplicateWarning.explanation}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleMergeDirectly}
+                      className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium shrink-0 transition-colors"
+                    >
+                      Merge with Case
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Description & Reporter Label */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2 space-y-1">
-              <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block">
-                Incident Description & Observed Damage
-              </label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Describe the hazard, any injuries, obstruction extent, or safety risks..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-sky-500 resize-none"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block">
-                Reporter Identifier
-              </label>
-              <input
-                type="text"
-                value={reporterLabel}
-                onChange={e => setReporterLabel(e.target.value)}
-                placeholder="Student Reporter 1 / Staff"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-sky-500"
-              />
-              <p className="text-[10px] font-mono text-slate-500">
-                Preserved during duplicate evidence clustering.
-              </p>
-            </div>
-          </div>
-
-          {/* STAGE 3 DUPLICATE DETECTION WARNING BANNER */}
-          {duplicateWarning && (
-            <div className="p-4 rounded-xl bg-purple-950/40 border border-purple-500/50 shadow-lg animate-in slide-in-from-top-2 duration-200">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
-                    <GitMerge className="w-4 h-4" />
+          {/* STEP 4: CONFIRM & SUBMIT */}
+          {currentStep === 4 && (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-300">
+                    <img src={imageUrl} alt="" className="w-full h-full object-cover" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-purple-300 uppercase tracking-wider">
-                        Probable Duplicate Report Detected ({duplicateWarning.totalScore}% Match)
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-900 text-purple-200 border border-purple-400/30">
-                        {duplicateWarning.targetCaseId}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-200 mt-1 font-semibold">
-                      Existing Case: "{duplicateWarning.targetCaseTitle}"
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                      Breakdown: {duplicateWarning.explanation}
-                    </p>
+                  <div className="space-y-1 text-xs">
+                    <span className="font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                      {category}
+                    </span>
+                    <h4 className="text-sm font-bold text-slate-900 mt-1">{title}</h4>
+                    <p className="text-slate-600">{zone} — {landmark}</p>
+                    <p className="text-slate-500 italic mt-1 line-clamp-2">"{description}"</p>
                   </div>
                 </div>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={handleMergeDirectly}
-                  className="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-mono font-bold transition-colors shrink-0 shadow-md shadow-purple-600/20 flex items-center gap-1.5"
-                >
-                  <GitMerge className="w-3.5 h-3.5" />
-                  Merge Into Master Case
-                </button>
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <span>
+                  By submitting, this report will be assigned a permanent Case ID and routed to the corresponding campus maintenance dispatch queue.
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900/80">
-          <div className="text-xs font-mono text-slate-400">
-            Model: <span className="text-sky-400 font-bold">{apiConfig.selectedModel}</span>
+        {/* Modal Footer Controls */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+          <div>
+            {currentStep > 1 && (
+              <button
+                type="button"
+                onClick={() => setCurrentStep((currentStep - 1) as 1 | 2 | 3 | 4)}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </button>
+            )}
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg text-xs font-mono text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={handleSubmitNewCase}
-              disabled={isSubmitting || !description.trim() || !imageUrl}
-              className="flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-mono font-bold bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 transition-colors shadow-lg shadow-sky-500/20"
-            >
-              <Sparkles className="w-4 h-4 fill-current" />
-              {isSubmitting ? 'Analyzing Reality with AI...' : 'Analyze & Submit Case'}
-            </button>
+
+            {currentStep < 4 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentStep === 1 && !imageUrl) return;
+                  if (currentStep === 2 && !description.trim()) return;
+                  setCurrentStep((currentStep + 1) as 1 | 2 | 3 | 4);
+                }}
+                disabled={(currentStep === 1 && !imageUrl) || (currentStep === 2 && !description.trim())}
+                className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium transition-colors"
+              >
+                <span>Continue</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmitNewCase}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium shadow-sm transition-colors"
+              >
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                {isSubmitting ? 'Analyzing & Submitting...' : 'Submit Incident Report'}
+              </button>
+            )}
           </div>
         </div>
       </div>
