@@ -142,20 +142,75 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
 
       {/* Main Content Container */}
       <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Mobile Back Action Button */}
+        {/* Mobile Back Action Button & Active Case Bar */}
         {onBackToList && (
-          <button
-            type="button"
-            onClick={onBackToList}
-            className="lg:hidden inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 mb-2 py-1"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back to all reports
-          </button>
+          <div className="lg:hidden flex items-center justify-between gap-2 mb-2 py-1">
+            <button
+              type="button"
+              onClick={onBackToList}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-xs min-h-[44px]"
+            >
+              <ChevronLeft className="w-4 h-4 text-slate-500" />
+              <span>All Reports</span>
+            </button>
+            <div className="text-right">
+              <span className="text-[11px] font-mono text-slate-500">Case ID: {civicCase.id}</span>
+            </div>
+          </div>
         )}
 
+        {/* 5-Stage Interactive Workflow Stepper */}
+        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 p-2 shadow-xs">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none text-xs">
+            <button
+              type="button"
+              onClick={() => document.getElementById('section-capture')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 min-h-[44px] sm:min-h-[36px]"
+            >
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
+              <span>Capture Reality</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => document.getElementById('section-analysis')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100 min-h-[44px] sm:min-h-[36px]"
+            >
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">2</span>
+              <span>Gemma Analysis</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => document.getElementById('section-duplicates')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100 min-h-[44px] sm:min-h-[36px]"
+            >
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">3</span>
+              <span>Duplicates ({civicCase.mergeHistory.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => document.getElementById('section-dossier')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100 min-h-[44px] sm:min-h-[36px]"
+            >
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">4</span>
+              <span>Work Order</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => document.getElementById('section-verification')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100 min-h-[44px] sm:min-h-[36px]"
+            >
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">5</span>
+              <span>Verify Repair</span>
+            </button>
+          </div>
+        </div>
+
         {/* 1. Header Section: Title, Status, and Quick Actions */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+        <div id="section-capture" className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-1.5 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -271,7 +326,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
         </div>
 
         {/* 3. AI Analysis & Inspection Findings (Trustworthy & Human-Readable) */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+        <div id="section-analysis" className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -404,47 +459,57 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
         </div>
 
         {/* 4. Corroborating Evidence & Merged Duplicate Reports */}
-        {civicCase.evidence.length > 1 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center">
-                  <Layers className="w-4 h-4" />
+        <div id="section-duplicates">
+          {civicCase.evidence.length > 1 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Corroborating Evidence Submissions ({civicCase.evidence.length} Photos)
+                  </h2>
                 </div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  Corroborating Evidence Submissions ({civicCase.evidence.length} Photos)
-                </h2>
+                <span className="text-xs text-slate-500">
+                  {civicCase.mergeHistory.length} Merged Duplicates
+                </span>
               </div>
-              <span className="text-xs text-slate-500">
-                {civicCase.mergeHistory.length} Merged Duplicates
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {civicCase.evidence.map(ev => (
-                <div key={ev.id} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                  <div className="w-full aspect-16/10 bg-slate-200 overflow-hidden">
-                    <img
-                      src={ev.imageUrl}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-3 space-y-1 text-xs">
-                    <div className="flex items-center justify-between font-semibold text-slate-800">
-                      <span>{ev.reporterLabel}</span>
-                      <span className="text-slate-500 font-normal">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {civicCase.evidence.map(ev => (
+                  <div key={ev.id} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                    <div className="w-full aspect-16/10 bg-slate-200 overflow-hidden">
+                      <img
+                        src={ev.imageUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                    <p className="text-slate-600 text-xs">{ev.description}</p>
+                    <div className="p-3 space-y-1 text-xs">
+                      <div className="flex items-center justify-between font-semibold text-slate-800">
+                        <span>{ev.reporterLabel}</span>
+                        <span className="text-slate-500 font-normal">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="text-slate-600 text-xs">{ev.description}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-slate-400" />
+                <span>Duplicate Clustering: Standalone report. No secondary submissions merged yet.</span>
+              </div>
+              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">1 Photo</span>
+            </div>
+          )}
+        </div>
 
         {/* 5. Maintenance Work Order Section */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+        <div id="section-dossier" className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
@@ -474,20 +539,20 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs text-slate-500">
             <span>Ready for municipal ticketing &amp; facilities export.</span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleCopyMarkdown}
-                className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-medium transition-colors"
+                className="min-h-[44px] px-3.5 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-medium transition-colors"
               >
                 Copy Markdown Ticket
               </button>
               <button
                 type="button"
                 onClick={handlePrintDossier}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 font-medium transition-colors"
+                className="min-h-[44px] px-3.5 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 font-medium transition-colors"
               >
                 Print Work Order
               </button>
@@ -496,7 +561,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
         </div>
 
         {/* 6. Visual Repair Verification (Before / After Inspection) */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+        <div id="section-verification" className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">

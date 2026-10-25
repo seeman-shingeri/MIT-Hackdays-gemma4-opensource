@@ -11,7 +11,8 @@ import {
   ClipboardList, 
   Plus, 
   Play, 
-  HelpCircle 
+  HelpCircle,
+  ShieldCheck 
 } from 'lucide-react';
 
 import { 
@@ -353,24 +354,40 @@ export function App() {
         </div>
       </div>
 
-      {/* 4. Mobile Bottom Navigation Bar */}
-      <nav className="lg:hidden sticky bottom-0 z-30 w-full bg-white border-t border-slate-200 py-2 px-6 flex items-center justify-around shadow-sm">
+      {/* 4. Mobile Bottom Navigation Bar with Safe Area support */}
+      <nav className="lg:hidden sticky bottom-0 z-30 w-full bg-white border-t border-slate-200 py-1 px-3 pb-safe flex items-center justify-around shadow-md">
         <button
           type="button"
           onClick={() => setMobileView('list')}
-          className={`flex flex-col items-center gap-1 text-xs font-medium ${
-            mobileView === 'list' ? 'text-blue-600' : 'text-slate-500'
+          className={`min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+            mobileView === 'list' ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'
           }`}
+          aria-label="View all incident cases"
         >
           <ClipboardList className="w-5 h-5" />
-          <span>Reports</span>
+          <span>Cases</span>
         </button>
+
+        {activeCase && (
+          <button
+            type="button"
+            onClick={() => setMobileView('detail')}
+            className={`min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+              mobileView === 'detail' ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'
+            }`}
+            aria-label="View active case workflow"
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span className="truncate max-w-[64px]">Workflow</span>
+          </button>
+        )}
 
         <button
           type="button"
           onClick={() => setIsReportModalOpen(true)}
-          className="flex flex-col items-center justify-center -mt-5 w-12 h-12 rounded-full bg-blue-600 text-white shadow-md active:scale-95 transition-transform"
+          className="min-h-[48px] min-w-[48px] flex items-center justify-center -mt-4 w-12 h-12 rounded-full bg-blue-600 text-white shadow-md active:scale-95 transition-transform focus:ring-2 focus:ring-blue-500"
           title="Report New Incident"
+          aria-label="Report New Incident"
         >
           <Plus className="w-6 h-6 stroke-[2.5]" />
         </button>
@@ -378,9 +395,10 @@ export function App() {
         <button
           type="button"
           onClick={startReplay}
-          className={`flex flex-col items-center gap-1 text-xs font-medium ${
-            isReplayActive ? 'text-amber-600' : 'text-slate-500'
+          className={`min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+            isReplayActive ? 'text-amber-600 font-semibold' : 'text-slate-500 hover:text-slate-700'
           }`}
+          aria-label="Community Problem Replay"
         >
           <Play className="w-5 h-5" />
           <span>Replay</span>
@@ -389,7 +407,8 @@ export function App() {
         <button
           type="button"
           onClick={() => setIsRubricModalOpen(true)}
-          className="flex flex-col items-center gap-1 text-xs font-medium text-slate-500"
+          className="min-h-[44px] min-w-[44px] px-2 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          aria-label="Project Rubric and Architecture"
         >
           <HelpCircle className="w-5 h-5" />
           <span>About</span>

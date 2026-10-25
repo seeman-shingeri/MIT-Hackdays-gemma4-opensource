@@ -29,20 +29,20 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     <header className="sticky top-0 z-40 w-full bg-white border-b border-slate-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Brand & Descriptor */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
             <ShieldCheck className="w-5 h-5 stroke-[2.2]" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-900 text-base tracking-tight">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-bold text-slate-900 text-base sm:text-lg tracking-tight truncate">
                 REPAIR<span className="text-blue-600">.AI</span>
               </span>
               <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                 Civic Field Inspector
               </span>
             </div>
-            <p className="text-xs text-slate-500 hidden sm:block">
+            <p className="text-xs text-slate-500 hidden sm:block truncate">
               Community Infrastructure &amp; Accessibility Resolution
             </p>
           </div>
@@ -85,13 +85,14 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         </nav>
 
         {/* Right Primary Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* Settings Trigger (API Key & Engine) */}
           <button
             type="button"
             onClick={onOpenModelModal}
             title="Configure AI Engine & API"
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            className="w-11 h-11 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            aria-label="Settings and Engine Configuration"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -100,10 +101,11 @@ export const CommandBar: React.FC<CommandBarProps> = ({
           <button
             type="button"
             onClick={onOpenReportModal}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium shadow-sm transition-all active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>New Report</span>
+            <span className="hidden xs:inline sm:inline">New Report</span>
+            <span className="xs:hidden sm:hidden">Report</span>
           </button>
         </div>
       </div>
