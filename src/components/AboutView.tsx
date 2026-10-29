@@ -11,11 +11,14 @@ import {
   ShieldCheck, 
   Code2, 
   Activity,
-  AlertOctagon
+  AlertOctagon,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { SUPPORTED_MODELS } from '../types/ai';
 import { checkApiKeyAndModels, type ModelCheckResult } from '../services/ai';
 import type { CivicCase } from '../types/case';
+import { exportCasesToJson, exportCasesToCsv, triggerFileDownload } from '../services/dataExport';
 
 interface AboutViewProps {
   apiKey: string;
@@ -336,7 +339,35 @@ export const AboutView: React.FC<AboutViewProps> = ({
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end">
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const csv = exportCasesToCsv(cases);
+                  triggerFileDownload(csv, `repair_ai_reports_${Date.now()}.csv`, 'text/csv');
+                }}
+                disabled={cases.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors disabled:opacity-40"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Export CSV</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const json = exportCasesToJson(cases);
+                  triggerFileDownload(json, `repair_ai_reports_${Date.now()}.json`, 'application/json');
+                }}
+                disabled={cases.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors disabled:opacity-40"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-600" />
+                <span>Export JSON</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={onClearData}
