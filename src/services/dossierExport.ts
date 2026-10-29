@@ -113,3 +113,90 @@ export async function copyDossierToClipboard(civicCase: CivicCase): Promise<bool
     return false;
   }
 }
+
+/**
+ * Generates standalone, printable HTML document for official municipal dispatch.
+ */
+export function generatePrintHtml(civicCase: CivicCase): string {
+  const hazardsHtml = civicCase.aiAnalysis?.detectedHazards.map(h => `<li>${h}</li>`).join('') || '<li>Standard visual field hazard evaluation</li>';
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Work Order ${civicCase.id} - REPAIR.AI</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; padding: 32px; max-width: 800px; margin: 0 auto; }
+    .header { border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .title { font-size: 20px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sub { font-size: 12px; color: #64748b; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; background: #f1f5f9; border: 1px solid #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+    th { background: #f8fafc; font-weight: 600; width: 28%; }
+    .section-title { font-size: 14px; font-weight: 700; text-transform: uppercase; margin: 20px 0 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; color: #334155; }
+    .signatures { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .sig-line { border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; color: #64748b; }
+    @media print {
+      body { padding: 0; }
+      @page { margin: 1.5cm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">Municipal Work Order</div>
+      <div class="sub">REPAIR.AI Civic Infrastructure Intelligence</div>
+    </div>
+    <div>
+      <span class="badge">Case #${civicCase.id}</span>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Incident Title</th><td>${civicCase.title}</td></tr>
+    <tr><th>Category</th><td>${civicCase.category}</td></tr>
+    <tr><th>Severity</th><td><strong>${civicCase.severity}</strong> (Priority: ${civicCase.priorityScore}/100)</td></tr>
+    <tr><th>Current Status</th><td>${civicCase.status}</td></tr>
+    <tr><th>Location Zone</th><td>${civicCase.zone} — ${civicCase.landmark}</td></tr>
+    <tr><th>Assigned Crew</th><td>${civicCase.assignedTeam || 'Facilities Infrastructure Dispatch'}</td></tr>
+    <tr><th>Target SLA Window</th><td>${civicCase.estimatedResponseTarget || 'Standard Tier (24h)'}</td></tr>
+    <tr><th>Reported Date</th><td>${new Date(civicCase.createdAt).toLocaleString()}</td></tr>
+  </table>
+
+  <div class="section-title">Field Evaluation & Hazards</div>
+  <ul>${hazardsHtml}</ul>
+
+  ${civicCase.aiAnalysis ? `
+  <div class="section-title">Recommended Remediation Action</div>
+  <p style="font-size: 13px; color: #334155;">${civicCase.aiAnalysis.recommendedAction}</p>
+  ` : ''}
+
+  <div class="signatures">
+    <div>
+      <div style="height: 48px;"></div>
+      <div class="sig-line">Field Inspector Signature & Date</div>
+    </div>
+    <div>
+      <div style="height: 48px;"></div>
+      <div class="sig-line">Municipal Supervisor Authorization</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Triggers browser print dialog for the case work order.
+ */
+export function printCaseWorkOrder(civicCase: CivicCase): void {
+  if (typeof window === 'undefined') return;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  printWindow.document.write(generatePrintHtml(civicCase));
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+

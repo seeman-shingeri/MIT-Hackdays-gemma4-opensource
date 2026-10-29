@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateMarkdownDossier } from '../services/dossierExport';
+import { generateMarkdownDossier, generatePrintHtml } from '../services/dossierExport';
 import { INITIAL_DEMO_CASES } from '../data/demoCases';
 
 describe('dossierExport service', () => {
@@ -15,5 +15,19 @@ describe('dossierExport service', () => {
     expect(md).toContain(`## 2. Multimodal AI Analysis`);
     expect(md).toContain(`Epistemic Uncertainty & Inspection Limits`);
     expect(md).toContain(`Non-binding SLA`);
+  });
+
+  it('generates official municipal work order HTML with printable markup and signatures', () => {
+    const testCase = INITIAL_DEMO_CASES[0];
+    const html = generatePrintHtml(testCase);
+
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('Municipal Work Order');
+    expect(html).toContain(testCase.id);
+    expect(html).toContain(testCase.title);
+    expect(html).toContain(testCase.category);
+    expect(html).toContain('Field Inspector Signature');
+    expect(html).toContain('Municipal Supervisor Authorization');
+    expect(html).toContain('@media print');
   });
 });
