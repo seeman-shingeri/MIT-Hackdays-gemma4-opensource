@@ -5,8 +5,10 @@ import {
   CheckCircle2, 
   ShieldCheck, 
   Sparkles,
-  Camera
+  Camera,
+  ArrowDownUp
 } from 'lucide-react';
+import { filterAndSortCases } from './caseFilters';
 import type { CivicCase } from '../../types/case';
 
 interface CaseFeedProps {
@@ -32,39 +34,18 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Resolved' | 'My Reports'>(initialFilter);
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [sortOrder, setSortOrder] = useState<'priority' | 'newest' | 'oldest'>('priority');
 
   const filteredCases = useMemo(() => {
-    return cases.filter(c => {
-      // My reports filter
-      if (statusFilter === 'My Reports') {
-        if (!currentUserId || c.createdBy !== currentUserId) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (statusFilter === 'Active' && (c.status === 'RESOLVED' || c.status === 'CLOSED' || c.verification?.verificationStatus === 'VISUALLY_VERIFIED')) {
-        return false;
-      }
-      if (statusFilter === 'Resolved' && c.status !== 'RESOLVED' && c.verification?.verificationStatus !== 'VISUALLY_VERIFIED') {
-        return false;
-      }
-
-      // Search query
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
-        const matchesId = c.id.toLowerCase().includes(query);
-        const matchesTitle = c.title.toLowerCase().includes(query);
-        const matchesZone = c.zone.toLowerCase().includes(query);
-        const matchesLandmark = c.landmark.toLowerCase().includes(query);
-        const matchesCategory = c.category.toLowerCase().includes(query);
-        const matchesReporter = c.createdByName?.toLowerCase().includes(query) || false;
-        return matchesId || matchesTitle || matchesZone || matchesLandmark || matchesCategory || matchesReporter;
-      }
-
-      return true;
+    return filterAndSortCases(cases, {
+      statusFilter,
+      categoryFilter,
+      sortOrder,
+      searchTerm,
+      currentUserId,
     });
-  }, [cases, statusFilter, searchTerm, currentUserId]);
+  }, [cases, statusFilter, categoryFilter, sortOrder, searchTerm, currentUserId]);
 
   // Clean, iOS-style status badge
   const renderStatusBadge = (c: CivicCase) => {
@@ -175,8 +156,8 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
           />
         </div>
 
-        {/* Compact Segmented Status Filter */}
-        <div className="flex items-center justify-between text-xs">
+        {/* Compact Segmented Status Filter & Sort Selection */}
+        <div className="flex items-center justify-between gap-2 text-xs">
           <div className="flex items-center p-0.5 bg-slate-100/90 rounded-lg border border-slate-200/70 overflow-x-auto scrollbar-none">
             {(
               (currentUserId
@@ -198,7 +179,44 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
             ))}
           </div>
 
-          <span className="text-xs text-slate-400 font-medium">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <label htmlFor="case-sort-select" className="sr-only">Sort reports</label>
+            <div className="relative inline-flex items-center">
+              <ArrowDownUp className="w-3 h-3 text-slate-400 absolute left-2 pointer-events-none" />
+              <select
+                id="case-sort-select"
+                aria-label="Sort reports"
+                value={sortOrder}
+                onChange={e => setSortOrder(e.target.value as 'priority' | 'newest' | 'oldest')}
+                className="pl-6 pr-2 py-1 text-[11px] font-medium bg-slate-100/90 hover:bg-slate-200/70 border border-slate-200/80 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+              >
+                <option value="priority">Priority</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Category Filter Pills & Incident Count */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 text-[11px]">
+            {(['All', 'Accessibility', 'Pedestrian Safety', 'Structural', 'Electrical', 'Plumbing'] as const).map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap transition-colors ${
+                  categoryFilter === cat
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-slate-400 font-medium shrink-0">
             {filteredCases.length} {filteredCases.length === 1 ? 'incident' : 'incidents'}
           </span>
         </div>
