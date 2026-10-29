@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CommandBar, type AppTab } from './components/CommandBar';
 import { CaseFeed } from './features/cases/CaseFeed';
 import { CaseDetailWorkflow } from './features/cases/CaseDetailWorkflow';
@@ -163,6 +163,27 @@ export function App() {
     setFeedFilter('My Reports');
     setMobileReportsView('list');
   };
+
+  // Keyboard navigation shortcuts (1: Reports, 2: Inspect, 3: Leaderboard, 4: About)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === '1') {
+        setActiveTab('reports');
+      } else if (e.key === '2') {
+        setActiveTab('inspect');
+      } else if (e.key === '3') {
+        setActiveTab('leaderboard');
+      } else if (e.key === '4') {
+        setActiveTab('about');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Clear local data
   const handleClearData = () => {
@@ -357,6 +378,14 @@ export function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans antialiased">
+      {/* Skip to Main Content Link for Keyboard and Screen Reader Accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-xl focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white text-xs font-bold"
+      >
+        Skip to main content
+      </a>
+
       {/* Offline Status Warning Banner */}
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs font-semibold flex items-center justify-between gap-2 shadow-sm animate-in fade-in duration-200">
@@ -405,7 +434,7 @@ export function App() {
       />
 
       {/* 2. Main Content View Area (Scrolls independently; Never covered by navigation) */}
-      <main className="flex-1 overflow-hidden pt-16 pb-16 lg:pb-0 flex flex-col">
+      <main id="main-content" className="flex-1 overflow-hidden pt-16 pb-16 lg:pb-0 flex flex-col">
         {activeTab === 'reports' && (
           <div className="flex-1 flex overflow-hidden max-w-7xl mx-auto w-full">
             {/* Left Column: Reports List */}

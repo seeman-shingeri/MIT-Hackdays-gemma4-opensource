@@ -80,9 +80,17 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         </button>
 
         {/* Center: Desktop Segmented Control (macOS Glass Style) */}
-        <nav className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 shadow-inner">
+        <nav 
+          role="tablist"
+          aria-label="Main application navigation"
+          className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 shadow-inner"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'reports'}
+            aria-label="Incident Reports (Shortcut: 1)"
+            title="Reports (Shortcut: 1)"
             onClick={() => onSelectTab('reports')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'reports'
@@ -103,6 +111,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'inspect'}
+            aria-label="Inspect Fault (Shortcut: 2)"
+            title="Inspect (Shortcut: 2)"
             onClick={() => onSelectTab('inspect')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'inspect'
@@ -116,6 +128,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'leaderboard'}
+            aria-label="Contributor Leaderboard (Shortcut: 3)"
+            title="Leaderboard (Shortcut: 3)"
             onClick={() => onSelectTab('leaderboard')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'leaderboard'
@@ -129,6 +145,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'about'}
+            aria-label="About & System Architecture (Shortcut: 4)"
+            title="About (Shortcut: 4)"
             onClick={() => onSelectTab('about')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'about'
