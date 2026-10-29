@@ -179,3 +179,60 @@ export async function processAndCompressImage(
     img.src = objectUrl;
   });
 }
+
+/**
+ * Formats byte values into clean, human-readable file sizes (B, KB, MB).
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/**
+ * Calculates compression ratio and bytes saved between original and processed images.
+ */
+export function calculateCompressionSavings(originalBytes: number, compressedBytes: number): {
+  savedBytes: number;
+  savingsPercent: number;
+} {
+  if (originalBytes <= 0) {
+    return { savedBytes: 0, savingsPercent: 0 };
+  }
+  const savedBytes = Math.max(0, originalBytes - compressedBytes);
+  const savingsPercent = Math.min(100, Math.round((savedBytes / originalBytes) * 1000) / 10);
+  return { savedBytes, savingsPercent };
+}
+
+/**
+ * Pure calculation to fit dimensions inside maxDimension while preserving aspect ratio.
+ */
+export function calculateDimensionsFit(
+  width: number,
+  height: number,
+  maxDimension = 1600
+): { width: number; height: number; scaled: boolean } {
+  if (width <= 0 || height <= 0) {
+    return { width: 0, height: 0, scaled: false };
+  }
+
+  if (width <= maxDimension && height <= maxDimension) {
+    return { width, height, scaled: false };
+  }
+
+  if (width >= height) {
+    return {
+      width: maxDimension,
+      height: Math.round((height * maxDimension) / width),
+      scaled: true,
+    };
+  }
+
+  return {
+    width: Math.round((width * maxDimension) / height),
+    height: maxDimension,
+    scaled: true,
+  };
+}
+

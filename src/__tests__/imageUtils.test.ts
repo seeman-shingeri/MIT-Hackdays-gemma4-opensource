@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { validateImageFile } from '../utils/imageUtils';
+import { 
+  validateImageFile, 
+  formatFileSize, 
+  calculateCompressionSavings, 
+  calculateDimensionsFit 
+} from '../utils/imageUtils';
 
 describe('imageUtils file validation', () => {
   it('accepts valid JPEG, PNG, WebP and SVG files', () => {
@@ -38,5 +43,44 @@ describe('imageUtils file validation', () => {
 
     expect(result.valid).toBe(false);
     expect(result.error).toContain('exceeds the 20MB limit');
+  });
+});
+
+describe('imageUtils formatting and dimension calculation', () => {
+  it('formats bytes into readable size strings', () => {
+    expect(formatFileSize(0)).toBe('0 B');
+    expect(formatFileSize(512)).toBe('512 B');
+    expect(formatFileSize(2048)).toBe('2.0 KB');
+    expect(formatFileSize(5 * 1024 * 1024)).toBe('5.00 MB');
+  });
+
+  it('calculates compression savings percentage accurately', () => {
+    const { savedBytes, savingsPercent } = calculateCompressionSavings(1000, 250);
+    expect(savedBytes).toBe(750);
+    expect(savingsPercent).toBe(75);
+
+    const noSavings = calculateCompressionSavings(100, 150);
+    expect(noSavings.savedBytes).toBe(0);
+    expect(noSavings.savingsPercent).toBe(0);
+  });
+
+  it('scales dimensions preserving aspect ratio without distortion', () => {
+    // 4000x3000 landscape scaled to 1600 max
+    const landscape = calculateDimensionsFit(4000, 3000, 1600);
+    expect(landscape.width).toBe(1600);
+    expect(landscape.height).toBe(1200);
+    expect(landscape.scaled).toBe(true);
+
+    // 3000x4000 portrait scaled to 1600 max
+    const portrait = calculateDimensionsFit(3000, 4000, 1600);
+    expect(portrait.width).toBe(1200);
+    expect(portrait.height).toBe(1600);
+    expect(portrait.scaled).toBe(true);
+
+    // Already smaller than max
+    const small = calculateDimensionsFit(800, 600, 1600);
+    expect(small.width).toBe(800);
+    expect(small.height).toBe(600);
+    expect(small.scaled).toBe(false);
   });
 });
