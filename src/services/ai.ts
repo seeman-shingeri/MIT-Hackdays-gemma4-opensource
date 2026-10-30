@@ -38,6 +38,56 @@ export interface ModelCheckResult {
   errorMessage?: string;
 }
 
+export interface AiInferenceTelemetry {
+  timestamp: string;
+  model: string;
+  task: 'fault_recognition' | 'incident_analysis' | 'verification' | 'model_check';
+  latencyMs: number;
+  success: boolean;
+  isSimulated: boolean;
+  error?: string;
+}
+
+const TELEMETRY_STORAGE_KEY = 'repair_ai_ai_telemetry_v1';
+
+export function getAiTelemetryLogs(): AiInferenceTelemetry[] {
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+  try {
+    const raw = localStorage.getItem(TELEMETRY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function logAiTelemetry(entry: AiInferenceTelemetry): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const logs = getAiTelemetryLogs();
+    logs.unshift(entry);
+    if (logs.length > 20) logs.length = 20;
+    localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify(logs));
+  } catch {
+    // ignore
+  }
+}
+
+export function clearAiTelemetryLogs(): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    localStorage.removeItem(TELEMETRY_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function getAverageTelemetryLatency(): number {
+  const logs = getAiTelemetryLogs();
+  if (logs.length === 0) return 0;
+  const total = logs.reduce((acc, l) => acc + l.latencyMs, 0);
+  return Math.round(total / logs.length);
+}
+
 export async function checkApiKeyAndModels(apiKey: string): Promise<ModelCheckResult> {
   if (!apiKey || !apiKey.trim()) {
     return {
@@ -151,10 +201,20 @@ export async function recognizeFaultAutomatically(
   signal?: AbortSignal
 ): Promise<AutomaticFaultRecognitionResult> {
   const modelToUse = config.selectedModel || 'gemini-2.5-flash';
+  const startTime = performance.now();
 
   // 1. If explicit Demo Mode is active, return calibrated demonstration inspection
   if (config.isDemoMode) {
-    return generateSimulatedFaultRecognition(imageDataUrl);
+    const result = generateSimulatedFaultRecognition(imageDataUrl);
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: result.modelUsed,
+      task: 'fault_recognition',
+      latencyMs: Math.round(performance.now() - startTime),
+      success: true,
+      isSimulated: true,
+    });
+    return result;
   }
 
   // 2. If no API key configured and NOT in demo mode, fail honestly
@@ -264,8 +324,27 @@ Return ONLY a strictly valid JSON object matching this schema (no markdown fence
       throw new AiServiceError(`Model output did not match expected structure: ${validated.error}`, 'VALIDATION_FAILED');
     }
 
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: modelToUse,
+      task: 'fault_recognition',
+      latencyMs: Math.round(performance.now() - startTime),
+      success: true,
+      isSimulated: false,
+    });
+
     return validated.data;
   } catch (err: unknown) {
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: modelToUse,
+      task: 'fault_recognition',
+      latencyMs: Math.round(performance.now() - startTime),
+      success: false,
+      isSimulated: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+
     if (err instanceof AiServiceError) {
       throw err;
     }
@@ -287,9 +366,19 @@ export async function analyzeIncidentEvidence(
   config: ApiConfig
 ): Promise<AiAnalysis> {
   const modelToUse = config.selectedModel || 'gemini-2.5-flash';
+  const startTime = performance.now();
 
   if (config.isDemoMode) {
-    return generateSimulatedAnalysis(input, 'Offline Calibrated Demo');
+    const result = generateSimulatedAnalysis(input, 'Offline Calibrated Demo');
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: result.modelUsed,
+      task: 'incident_analysis',
+      latencyMs: Math.round(performance.now() - startTime),
+      success: true,
+      isSimulated: true,
+    });
+    return result;
   }
 
   if (!config.apiKey || !config.apiKey.trim()) {
@@ -376,6 +465,15 @@ Return ONLY a strictly valid JSON object conforming to this schema (no markdown 
     throw new AiServiceError(`Invalid response structure: ${validated.error}`, 'VALIDATION_FAILED');
   }
 
+  logAiTelemetry({
+    timestamp: new Date().toISOString(),
+    model: modelToUse,
+    task: 'incident_analysis',
+    latencyMs: Math.round(performance.now() - startTime),
+    success: true,
+    isSimulated: false,
+  });
+
   return validated.data;
 }
 
@@ -389,9 +487,19 @@ export async function verifyRepairsMultimodal(
   config: ApiConfig
 ): Promise<VisualVerification> {
   const modelToUse = config.selectedModel || 'gemini-2.5-flash';
+  const startTime = performance.now();
 
   if (config.isDemoMode) {
-    return generateSimulatedVerification(beforeUrl, afterUrl);
+    const result = generateSimulatedVerification(beforeUrl, afterUrl);
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: 'Offline Calibrated Demo',
+      task: 'verification',
+      latencyMs: Math.round(performance.now() - startTime),
+      success: true,
+      isSimulated: true,
+    });
+    return result;
   }
 
   if (!config.apiKey || !config.apiKey.trim()) {
@@ -462,6 +570,15 @@ Return ONLY a strictly valid JSON object with this schema:
   if (!validated.success) {
     throw new AiServiceError(`Invalid verification response structure: ${validated.error}`, 'VALIDATION_FAILED');
   }
+
+  logAiTelemetry({
+    timestamp: new Date().toISOString(),
+    model: modelToUse,
+    task: 'verification',
+    latencyMs: Math.round(performance.now() - startTime),
+    success: true,
+    isSimulated: false,
+  });
 
   return validated.data;
 }

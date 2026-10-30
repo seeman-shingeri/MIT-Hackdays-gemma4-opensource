@@ -5,7 +5,14 @@ import {
   validateVerificationResponse,
   validateFaultRecognition 
 } from '../services/aiValidation';
-import { recognizeFaultAutomatically, AiServiceError } from '../services/ai';
+import { 
+  recognizeFaultAutomatically, 
+  AiServiceError,
+  logAiTelemetry,
+  getAiTelemetryLogs,
+  clearAiTelemetryLogs,
+  getAverageTelemetryLatency
+} from '../services/ai';
 
 describe('aiValidation and fault recognition service', () => {
   it('strips markdown code blocks and parses raw json', () => {
@@ -103,5 +110,37 @@ describe('aiValidation and fault recognition service', () => {
       expect(res.data.visualChangesObserved.length).toBe(2);
       expect(res.data.complianceDisclaimer).toContain('does NOT certify structural integrity');
     }
+  });
+
+  it('records, queries, and calculates average latency for AI inference telemetry logs', () => {
+    clearAiTelemetryLogs();
+    expect(getAiTelemetryLogs()).toHaveLength(0);
+    expect(getAverageTelemetryLatency()).toBe(0);
+
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: 'gemma-4-27b-it',
+      task: 'fault_recognition',
+      latencyMs: 300,
+      success: true,
+      isSimulated: false,
+    });
+
+    logAiTelemetry({
+      timestamp: new Date().toISOString(),
+      model: 'gemma-4-27b-it',
+      task: 'incident_analysis',
+      latencyMs: 500,
+      success: true,
+      isSimulated: false,
+    });
+
+    const logs = getAiTelemetryLogs();
+    expect(logs).toHaveLength(2);
+    expect(logs[0].task).toBe('incident_analysis'); // Most recent first
+    expect(getAverageTelemetryLatency()).toBe(400);
+
+    clearAiTelemetryLogs();
+    expect(getAiTelemetryLogs()).toHaveLength(0);
   });
 });

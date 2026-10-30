@@ -10,7 +10,13 @@ import {
   Key
 } from 'lucide-react';
 import { SUPPORTED_MODELS } from '../types/ai';
-import { checkApiKeyAndModels, type ModelCheckResult } from '../services/ai';
+import { 
+  checkApiKeyAndModels, 
+  type ModelCheckResult,
+  getAiTelemetryLogs,
+  getAverageTelemetryLatency,
+  clearAiTelemetryLogs
+} from '../services/ai';
 
 interface ModelConfigModalProps {
   isOpen: boolean;
@@ -37,6 +43,8 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [checkResult, setCheckResult] = useState<ModelCheckResult | null>(null);
   const [hasTested, setHasTested] = useState<boolean>(false);
+  const [telemetryLogs, setTelemetryLogs] = useState(() => getAiTelemetryLogs());
+  const [avgLatency, setAvgLatency] = useState(() => getAverageTelemetryLatency());
 
   if (!isOpen) return null;
 
@@ -255,6 +263,63 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                     <span>{checkResult.errorMessage || 'Connection failed.'}</span>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Real-Time Telemetry & Latency Metrics */}
+          <div className="space-y-2 pt-1 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-blue-600" />
+                Inference Telemetry ({telemetryLogs.length} calls)
+              </span>
+              {telemetryLogs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAiTelemetryLogs();
+                    setTelemetryLogs([]);
+                    setAvgLatency(0);
+                  }}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 font-medium"
+                >
+                  Clear Logs
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center text-xs">
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
+                <span className="text-[10px] text-slate-400 block font-medium">Avg Round-Trip</span>
+                <span className="text-sm font-bold text-slate-800">
+                  {avgLatency > 0 ? `${avgLatency} ms` : '—'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
+                <span className="text-[10px] text-slate-400 block font-medium">Recorded Calls</span>
+                <span className="text-sm font-bold text-slate-800">{telemetryLogs.length}</span>
+              </div>
+            </div>
+
+            {telemetryLogs.length > 0 && (
+              <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
+                {telemetryLogs.slice(0, 5).map((log, i) => (
+                  <div
+                    key={`${log.timestamp}-${i}`}
+                    className="p-1.5 rounded-lg bg-slate-50/70 border border-slate-200/60 flex items-center justify-between text-[11px]"
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        log.success ? 'bg-emerald-500' : 'bg-rose-500'
+                      }`} />
+                      <span className="font-mono text-slate-600 truncate">{log.model}</span>
+                    </div>
+                    <span className="text-slate-400 font-mono shrink-0 ml-2">
+                      {log.latencyMs}ms
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
