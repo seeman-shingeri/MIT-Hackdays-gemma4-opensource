@@ -24,7 +24,8 @@ import {
 import type { CivicCase, ClarificationAnswer, CaseStatus } from '../../types/case';
 import type { UserAccount } from '../../types/auth';
 import type { RatingCategory } from '../../types/reputation';
-import { copyDossierToClipboard } from '../../services/dossierExport';
+import { copyDossierToClipboard, printCaseWorkOrder } from '../../services/dossierExport';
+import { calculateCaseSla } from '../../services/sla';
 import { ImageComparisonSlider } from '../../components/ImageComparisonSlider';
 import { verifyRepairsMultimodal } from '../../services/ai';
 import type { ApiConfig } from '../../types/ai';
@@ -88,6 +89,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
   const primaryEvidence = civicCase.evidence[0];
   const beforeImageUrl = primaryEvidence?.imageUrl || '';
   const ai = civicCase.aiAnalysis;
+  const slaInfo = calculateCaseSla(civicCase);
 
   // Real ratings and activities
   const caseRatings = getRatingsForReport(civicCase.id);
@@ -111,7 +113,7 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
   // Handle Print Dossier
   const handlePrintDossier = () => {
     setIsMenuOpen(false);
-    window.print();
+    printCaseWorkOrder(civicCase);
   };
 
   // Handle Delete Confirmation
@@ -515,14 +517,25 @@ export const CaseDetailWorkflow: React.FC<CaseDetailWorkflowProps> = ({
             {/* Assigned To */}
             <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/70 space-y-1">
               <span className="text-slate-400 text-[10px] uppercase font-bold block">
-                Assigned To
+                Assigned Unit &amp; SLA
               </span>
               <strong className="text-slate-900 font-semibold text-sm block">
-                {civicCase.assignedTo || civicCase.assignedTeam || 'Not assigned'}
+                {civicCase.assignedTo || civicCase.assignedTeam || 'Facilities Dispatch'}
               </strong>
-              <span className="text-[11px] text-slate-400 block">
-                Target SLA: {civicCase.estimatedResponseTarget || 'Standard Tier'}
-              </span>
+              <div className="pt-0.5">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                  slaInfo.status === 'MET'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : slaInfo.status === 'EXCEEDED' || slaInfo.status === 'BREACHED'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : slaInfo.status === 'AT_RISK'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
+                  <Clock className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{slaInfo.statusLabel}</span>
+                </span>
+              </div>
             </div>
 
             {/* Resolution */}

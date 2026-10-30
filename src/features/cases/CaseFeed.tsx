@@ -6,9 +6,11 @@ import {
   ShieldCheck, 
   Sparkles,
   Camera,
-  ArrowDownUp
+  ArrowDownUp,
+  Clock
 } from 'lucide-react';
 import { filterAndSortCases } from './caseFilters';
+import { calculateCaseSla } from '../../services/sla';
 import type { CivicCase } from '../../types/case';
 
 interface CaseFeedProps {
@@ -233,6 +235,7 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
           filteredCases.map(c => {
             const isSelected = selectedCaseId === c.id;
             const primaryPhoto = c.evidence[0]?.imageUrl;
+            const sla = calculateCaseSla(c);
 
             return (
               <div
@@ -267,9 +270,17 @@ export const CaseFeed: React.FC<CaseFeedProps> = ({
                       {c.title}
                     </h3>
 
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1 truncate">
-                      <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span className="truncate">{c.zone} {c.landmark ? `— ${c.landmark}` : ''}</span>
+                    <div className="flex items-center justify-between gap-1 text-[11px] text-slate-500 mt-1 truncate">
+                      <div className="flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{c.zone} {c.landmark ? `— ${c.landmark}` : ''}</span>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center gap-0.5 text-[10px] ${
+                        sla.isOverdue ? 'text-rose-600 font-semibold' : 'text-slate-400 font-medium'
+                      }`}>
+                        <Clock className="w-2.5 h-2.5" />
+                        <span>{sla.isOverdue ? 'Overdue' : `${sla.remainingHours}h`}</span>
+                      </span>
                     </div>
                   </div>
                 </div>
