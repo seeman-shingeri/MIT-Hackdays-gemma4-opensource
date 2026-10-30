@@ -3,7 +3,8 @@ import type {
   PointEventType, 
   ContributorRanking, 
   LeaderboardPeriod, 
-  LeaderboardFilter 
+  LeaderboardFilter,
+  BadgeProgressInfo
 } from '../types/reputation';
 import { DEFAULT_POINTS_CONFIG } from '../types/reputation';
 import type { PublicUserProfile } from '../types/auth';
@@ -160,6 +161,63 @@ export function calculateEarnedBadges(
 
   return badges;
 }
+
+/**
+ * Computes progress counters and percentages toward each milestone badge.
+ */
+export function calculateBadgeProgress(
+  validReportsCount: number,
+  verifiedResolutionsCount: number,
+  evidenceBonusCount: number,
+  totalPoints: number
+): BadgeProgressInfo[] {
+  const criteria = [
+    {
+      badgeName: 'First Valid Report',
+      description: 'Submit your first verified civic infrastructure issue report.',
+      currentValue: validReportsCount,
+      targetValue: 1,
+    },
+    {
+      badgeName: 'Evidence Expert',
+      description: 'Submit high-utility evidence photograph verified by dispatch.',
+      currentValue: evidenceBonusCount,
+      targetValue: 1,
+    },
+    {
+      badgeName: 'Five Verified Reports',
+      description: 'Submit 5 corroborated infrastructure reports.',
+      currentValue: validReportsCount,
+      targetValue: 5,
+    },
+    {
+      badgeName: 'First Confirmed Repair',
+      description: 'Complete and verify your first on-site repair resolution.',
+      currentValue: verifiedResolutionsCount,
+      targetValue: 1,
+    },
+    {
+      badgeName: 'Community Helper',
+      description: 'Accumulate 50 reputation points across reports and repairs.',
+      currentValue: totalPoints,
+      targetValue: 50,
+    },
+  ];
+
+  return criteria.map(c => {
+    const earned = c.currentValue >= c.targetValue;
+    const progressPercent = Math.min(100, Math.round((c.currentValue / c.targetValue) * 100));
+    return {
+      badgeName: c.badgeName,
+      description: c.description,
+      earned,
+      currentValue: c.currentValue,
+      targetValue: c.targetValue,
+      progressPercent,
+    };
+  });
+}
+
 
 /**
  * Retrieves full public contributor profile for a user ID.

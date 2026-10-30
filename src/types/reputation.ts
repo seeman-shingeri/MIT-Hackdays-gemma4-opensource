@@ -91,3 +91,13 @@ export interface ContributorRanking {
 
 export type LeaderboardPeriod = 'all-time' | 'this-month';
 export type LeaderboardFilter = 'all' | 'reporters' | 'resolvers' | 'highest-rated';
+
+export interface BadgeProgressInfo {
+  badgeName: string;
+  description: string;
+  earned: boolean;
+  currentValue: number;
+  targetValue: number;
+  progressPercent: number;
+}
+

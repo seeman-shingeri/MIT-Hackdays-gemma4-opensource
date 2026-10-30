@@ -8,7 +8,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import type { PublicUserProfile } from '../types/auth';
-import { loadAllTransactions } from '../services/reputation';
+import { loadAllTransactions, calculateBadgeProgress } from '../services/reputation';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -29,6 +29,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const isSelf = currentUserId === profile.id;
   const userTransactions = loadAllTransactions().filter(t => t.userId === profile.id);
+  const badgeProgress = calculateBadgeProgress(
+    profile.validReportsCount,
+    profile.verifiedResolutionsCount,
+    0,
+    profile.totalPoints
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-150">
@@ -189,6 +195,35 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 No badges earned yet. Submit valid civic reports or complete repairs to earn badges.
               </div>
             )}
+
+            {/* Badge Milestone Progress */}
+            <div className="pt-2 space-y-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Milestone Progress
+              </span>
+              <div className="space-y-2">
+                {badgeProgress.map(bp => (
+                  <div key={bp.badgeName} className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-800">{bp.badgeName}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        bp.earned ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/80 text-slate-600'
+                      }`}>
+                        {bp.earned ? 'Unlocked' : `${bp.currentValue} / ${bp.targetValue}`}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          bp.earned ? 'bg-emerald-500' : 'bg-blue-600'
+                        }`}
+                        style={{ width: `${bp.progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Recent Point Transactions History */}

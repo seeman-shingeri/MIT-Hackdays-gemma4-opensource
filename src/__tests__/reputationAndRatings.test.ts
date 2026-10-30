@@ -4,7 +4,8 @@ import {
   loadAllTransactions, 
   getLeaderboard, 
   getPublicProfile,
-  calculateEarnedBadges 
+  calculateEarnedBadges,
+  calculateBadgeProgress
 } from '../services/reputation';
 import { submitRating, calculateUserRatingStats, loadAllRatings } from '../services/ratings';
 import { registerUser } from '../services/auth';
@@ -219,5 +220,35 @@ describe('Reputation, Scoring, Ratings & Leaderboard', () => {
     expect(profile?.verifiedResolutionsCount).toBe(1);
 
     expect(loadAllRatings()).toEqual([]);
+  });
+
+  it('computes granular progress metrics and completion percentages toward each milestone badge', () => {
+    // 3 valid reports, 0 resolutions, 1 evidence bonus, 35 points
+    const progress = calculateBadgeProgress(3, 0, 1, 35);
+    expect(progress).toHaveLength(5);
+
+    const firstReport = progress.find(b => b.badgeName === 'First Valid Report')!;
+    expect(firstReport.earned).toBe(true);
+    expect(firstReport.progressPercent).toBe(100);
+
+    const evidence = progress.find(b => b.badgeName === 'Evidence Expert')!;
+    expect(evidence.earned).toBe(true);
+    expect(evidence.progressPercent).toBe(100);
+
+    const fiveReports = progress.find(b => b.badgeName === 'Five Verified Reports')!;
+    expect(fiveReports.earned).toBe(false);
+    expect(fiveReports.currentValue).toBe(3);
+    expect(fiveReports.targetValue).toBe(5);
+    expect(fiveReports.progressPercent).toBe(60);
+
+    const repair = progress.find(b => b.badgeName === 'First Confirmed Repair')!;
+    expect(repair.earned).toBe(false);
+    expect(repair.progressPercent).toBe(0);
+
+    const communityHelper = progress.find(b => b.badgeName === 'Community Helper')!;
+    expect(communityHelper.earned).toBe(false);
+    expect(communityHelper.currentValue).toBe(35);
+    expect(communityHelper.targetValue).toBe(50);
+    expect(communityHelper.progressPercent).toBe(70);
   });
 });
